@@ -32,6 +32,7 @@ if is_tokenizers_available():
 if is_torch_available():
     _import_structure["modeling_bert"] = [
         "BERT_PRETRAINED_MODEL_ARCHIVE_LIST",
+        "BertForDualPassageEncoder",
         "BertForMaskedLM",
         "BertForMultipleChoice",
         "BertForNextSentencePrediction",
@@ -86,6 +87,7 @@ if TYPE_CHECKING:
     if is_torch_available():
         from .modeling_bert import (
             BERT_PRETRAINED_MODEL_ARCHIVE_LIST,
+            BertForDualPassageEncoder,
             BertForMaskedLM,
             BertForMultipleChoice,
             BertForNextSentencePrediction,

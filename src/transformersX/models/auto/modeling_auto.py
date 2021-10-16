@@ -39,6 +39,7 @@ from ..bart.modeling_bart import (
 )
 from ..beit.modeling_beit import BeitForImageClassification, BeitModel
 from ..bert.modeling_bert import (
+    BertForDualPassageEncoder,
     BertForMaskedLM,
     BertForMultipleChoice,
     BertForNextSentencePrediction,
@@ -577,6 +578,13 @@ MODEL_FOR_CAUSAL_LM_MAPPING = OrderedDict(
     ]
 )
 
+MODEL_FOR_DUAL_PASSAGE_ENCODER_MAPPING = OrderedDict(
+    [
+        # Model for Sequence Classification mapping
+        (BertConfig, BertForDualPassageEncoder),
+    ]
+)
+
 MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING = OrderedDict(
     [
         # Model for Image Classification mapping
@@ -895,6 +903,13 @@ class AutoModelForNextSentencePrediction(_BaseAutoModelClass):
 AutoModelForNextSentencePrediction = auto_class_update(
     AutoModelForNextSentencePrediction, head_doc="next sentence prediction"
 )
+
+
+class AutoModelForDualPassageEncoder(_BaseAutoModelClass):
+    _model_mapping = MODEL_FOR_DUAL_PASSAGE_ENCODER_MAPPING
+
+
+AutoModelForDualPassageEncoder = auto_class_update(AutoModelForDualPassageEncoder, head_doc="dual passage encoder")
 
 
 class AutoModelForImageClassification(_BaseAutoModelClass):

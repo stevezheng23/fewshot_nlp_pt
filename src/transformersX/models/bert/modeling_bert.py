@@ -24,6 +24,7 @@ from typing import Optional, Tuple
 
 import torch
 import torch.utils.checkpoint
+import torch.nn.functional as F
 from packaging import version
 from torch import nn
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
@@ -46,6 +47,7 @@ from ...modeling_outputs import (
     QuestionAnsweringModelOutput,
     SequenceClassifierOutput,
     TokenClassifierOutput,
+    DualPassageEncoderModelOutput,
 )
 from ...modeling_utils import (
     PreTrainedModel,
@@ -1857,4 +1859,133 @@ class BertForQuestionAnswering(BertPreTrainedModel):
             end_logits=end_logits,
             hidden_states=outputs.hidden_states,
             attentions=outputs.attentions,
+        )
+
+
+@add_start_docstrings(
+    """
+    Bert Model with a dual encoder head on top for passage retrieval tasks (a linear layer on top of the pooled output
+    for computing source-target similarity).
+    """,
+    BERT_START_DOCSTRING,
+)
+class BertForDualPassageEncoder(BertPreTrainedModel):
+    def __init__(self, config):
+        super().__init__(config)
+
+        self.bert = BertModel(config)
+        self.dropout = nn.Dropout(config.hidden_dropout_prob)
+
+        self.init_weights()
+
+    @add_start_docstrings_to_model_forward(BERT_INPUTS_DOCSTRING.format("batch_size, 2, sequence_length"))
+    @add_code_sample_docstrings(
+        tokenizer_class=_TOKENIZER_FOR_DOC,
+        checkpoint=_CHECKPOINT_FOR_DOC,
+        output_type=DualPassageEncoderModelOutput,
+        config_class=_CONFIG_FOR_DOC,
+    )
+    def forward(
+        self,
+        input_ids=None,
+        attention_mask=None,
+        token_type_ids=None,
+        position_ids=None,
+        head_mask=None,
+        inputs_embeds=None,
+        labels=None,
+        output_attentions=None,
+        output_hidden_states=None,
+        return_dict=None,
+    ):
+        r"""
+        labels (:obj:`torch.LongTensor` of shape :obj:`(batch_size,)`, `optional`):
+            Labels for computing the sequence classification/regression loss. Indices should be in :obj:`[0, ...,
+            config.num_labels - 1]`.
+        """
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
+
+        if labels is None:
+            outputs = self.bert(
+                input_ids,
+                attention_mask=attention_mask,
+                token_type_ids=token_type_ids,
+                position_ids=position_ids,
+                head_mask=head_mask,
+                inputs_embeds=inputs_embeds,
+                output_attentions=output_attentions,
+                output_hidden_states=output_hidden_states,
+                return_dict=return_dict,
+            )
+
+            pooled_output = outputs[1]
+            pooled_output = self.dropout(pooled_output)
+            pooled_output = F.normalize(pooled_output, dim=-1)
+
+            if not return_dict:
+                return (pooled_output,) + outputs[2:]
+
+            return DualPassageEncoderModelOutput(
+                pooled_output=pooled_output,
+                hidden_states=outputs.hidden_states,
+                attentions=outputs.attentions,
+            )
+
+        src_input_ids, trg_input_ids = input_ids.chunk(2, dim=1)
+        src_attention_mask, trg_attention_mask = attention_mask.chunk(2, dim=1) if attention_mask is not None else (None, None)
+        src_token_type_ids, trg_token_type_ids = token_type_ids.chunk(2, dim=1) if token_type_ids is not None else (None, None)
+        src_position_ids, trg_position_ids = position_ids.chunk(2, dim=1) if position_ids is not None else (None, None)
+        src_inputs_embeds, trg_inputs_embeds = inputs_embeds.chunk(2, dim=1) if inputs_embeds is not None else (None, None)
+
+        src_input_ids, trg_input_ids = src_input_ids.squeeze(1), trg_input_ids.squeeze(1)
+        src_attention_mask, trg_attention_mask = (src_attention_mask.squeeze(1), trg_attention_mask.squeeze(1)) if attention_mask is not None else (None, None)
+        src_token_type_ids, trg_token_type_ids = (src_token_type_ids.squeeze(1), trg_token_type_ids.squeeze(1)) if token_type_ids is not None else (None, None)
+        src_position_ids, trg_position_ids = (src_position_ids.squeeze(1), trg_position_ids.squeeze(1)) if position_ids is not None else (None, None)
+        src_inputs_embeds, trg_inputs_embeds = (src_inputs_embeds.squeeze(1), trg_inputs_embeds.squeeze(1)) if inputs_embeds is not None else (None, None)
+
+        src_outputs = self.bert(
+            src_input_ids,
+            attention_mask=src_attention_mask,
+            token_type_ids=src_token_type_ids,
+            position_ids=src_position_ids,
+            head_mask=head_mask,
+            inputs_embeds=src_inputs_embeds,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
+        )
+
+        src_pooled_output = src_outputs[1]
+        src_pooled_output = self.dropout(src_pooled_output)
+        src_pooled_output = F.normalize(src_pooled_output, dim=-1)
+
+        trg_outputs = self.bert(
+            trg_input_ids,
+            attention_mask=trg_attention_mask,
+            token_type_ids=trg_token_type_ids,
+            position_ids=trg_position_ids,
+            head_mask=head_mask,
+            inputs_embeds=trg_inputs_embeds,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
+        )
+
+        trg_pooled_output = trg_outputs[1]
+        trg_pooled_output = self.dropout(trg_pooled_output)
+        trg_pooled_output = F.normalize(trg_pooled_output, dim=-1)
+
+        mask = (labels.unsqueeze(-1).expand(-1, labels.size(0)) == labels.unsqueeze(0).expand(labels.size(0), -1)) & (1 - torch.eye(labels.size(0))).bool()
+        logits = torch.einsum('ik,jk->ij', src_pooled_output, trg_pooled_output).masked_fill(mask, float('-inf'))
+        labels = torch.argmax(torch.eye(labels.size(0)), dim=-1)
+        
+        loss_fct = CrossEntropyLoss()
+        loss = loss_fct(logits, labels)
+
+        if not return_dict:
+            return (loss, logits,)
+
+        return DualPassageEncoderModelOutput(
+            loss=loss,
+            logits=logits,
         )
