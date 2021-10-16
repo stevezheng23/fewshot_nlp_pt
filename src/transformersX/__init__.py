@@ -515,6 +515,7 @@ if is_torch_available():
     _import_structure["models.auto"].extend(
         [
             "MODEL_FOR_CAUSAL_LM_MAPPING",
+            "MODEL_FOR_DUAL_PASSAGE_ENCODER_MAPPING",
             "MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING",
             "MODEL_FOR_MASKED_LM_MAPPING",
             "MODEL_FOR_MULTIPLE_CHOICE_MAPPING",
@@ -530,6 +531,7 @@ if is_torch_available():
             "MODEL_WITH_LM_HEAD_MAPPING",
             "AutoModel",
             "AutoModelForCausalLM",
+            "AutoModelForDualPassageEncoder",
             "AutoModelForImageClassification",
             "AutoModelForMaskedLM",
             "AutoModelForMultipleChoice",
@@ -567,6 +569,7 @@ if is_torch_available():
     _import_structure["models.bert"].extend(
         [
             "BERT_PRETRAINED_MODEL_ARCHIVE_LIST",
+            "BertForDualPassageEncoder",
             "BertForMaskedLM",
             "BertForMultipleChoice",
             "BertForNextSentencePrediction",
@@ -2145,6 +2148,7 @@ if TYPE_CHECKING:
         )
         from .models.auto import (
             MODEL_FOR_CAUSAL_LM_MAPPING,
+            MODEL_FOR_DUAL_PASSAGE_ENCODER_MAPPING,
             MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING,
             MODEL_FOR_MASKED_LM_MAPPING,
             MODEL_FOR_MULTIPLE_CHOICE_MAPPING,
@@ -2160,6 +2164,7 @@ if TYPE_CHECKING:
             MODEL_WITH_LM_HEAD_MAPPING,
             AutoModel,
             AutoModelForCausalLM,
+            AutoModelForDualPassageEncoder,
             AutoModelForImageClassification,
             AutoModelForMaskedLM,
             AutoModelForMultipleChoice,
@@ -2191,6 +2196,7 @@ if TYPE_CHECKING:
         )
         from .models.bert import (
             BERT_PRETRAINED_MODEL_ARCHIVE_LIST,
+            BertForDualPassageEncoder,
             BertForMaskedLM,
             BertForMultipleChoice,
             BertForNextSentencePrediction,

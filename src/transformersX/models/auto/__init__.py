@@ -31,6 +31,7 @@ _import_structure = {
 if is_torch_available():
     _import_structure["modeling_auto"] = [
         "MODEL_FOR_CAUSAL_LM_MAPPING",
+        "MODEL_FOR_DUAL_PASSAGE_ENCODER_MAPPING",
         "MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING",
         "MODEL_FOR_MASKED_LM_MAPPING",
         "MODEL_FOR_MULTIPLE_CHOICE_MAPPING",
@@ -46,6 +47,7 @@ if is_torch_available():
         "MODEL_WITH_LM_HEAD_MAPPING",
         "AutoModel",
         "AutoModelForCausalLM",
+        "AutoModelForDualPassageEncoder",
         "AutoModelForImageClassification",
         "AutoModelForMaskedLM",
         "AutoModelForMultipleChoice",
@@ -120,6 +122,7 @@ if TYPE_CHECKING:
     if is_torch_available():
         from .modeling_auto import (
             MODEL_FOR_CAUSAL_LM_MAPPING,
+            MODEL_FOR_DUAL_PASSAGE_ENCODER_MAPPING,
             MODEL_FOR_IMAGE_CLASSIFICATION_MAPPING,
             MODEL_FOR_MASKED_LM_MAPPING,
             MODEL_FOR_MULTIPLE_CHOICE_MAPPING,
@@ -135,6 +138,7 @@ if TYPE_CHECKING:
             MODEL_WITH_LM_HEAD_MAPPING,
             AutoModel,
             AutoModelForCausalLM,
+            AutoModelForDualPassageEncoder,
             AutoModelForImageClassification,
             AutoModelForMaskedLM,
             AutoModelForMultipleChoice,
