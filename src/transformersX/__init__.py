@@ -70,6 +70,7 @@ _import_structure = {
         "SquadFeatures",
         "SquadV1Processor",
         "SquadV2Processor",
+        "FewshotProcessor",
         "glue_compute_metrics",
         "glue_convert_examples_to_features",
         "glue_output_modes",
@@ -80,6 +81,7 @@ _import_structure = {
         "xnli_output_modes",
         "xnli_processors",
         "xnli_tasks_num_labels",
+        "fewshot_processors",
     ],
     "feature_extraction_sequence_utils": ["BatchFeature", "SequenceFeatureExtractor"],
     "file_utils": [
@@ -1742,6 +1744,7 @@ if TYPE_CHECKING:
         SquadFeatures,
         SquadV1Processor,
         SquadV2Processor,
+        FewshotProcessor,
         glue_compute_metrics,
         glue_convert_examples_to_features,
         glue_output_modes,
@@ -1752,6 +1755,7 @@ if TYPE_CHECKING:
         xnli_output_modes,
         xnli_processors,
         xnli_tasks_num_labels,
+        fewshot_processors,
     )
 
     # Feature Extractor

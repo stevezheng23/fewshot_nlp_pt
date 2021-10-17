@@ -26,6 +26,7 @@ from .processors import (
     SquadFeatures,
     SquadV1Processor,
     SquadV2Processor,
+    FewshotProcessor,
     glue_convert_examples_to_features,
     glue_output_modes,
     glue_processors,
@@ -34,4 +35,5 @@ from .processors import (
     xnli_output_modes,
     xnli_processors,
     xnli_tasks_num_labels,
+    fewshot_processors,
 )
