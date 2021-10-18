@@ -35,10 +35,9 @@ from transformersX import (
     AutoModelForDualPassageEncoder,
     AutoTokenizer,
     DataCollatorWithPadding,
-    EvalPrediction,
     HfArgumentParser,
-    PretrainedConfig,
-    Trainer,
+    FewshotTrainer,
+    FewshotPrediction,
     TrainingArguments,
     default_data_collator,
     set_seed,
@@ -240,8 +239,8 @@ def main():
     raw_datasets = DatasetDict(dataset_dict)
     # A useful fast method:
     # https://huggingface.co/docs/datasets/package_reference/main_classes.html#datasets.Dataset.unique
-    label_set = set(raw_datasets["support"].unique("label") + raw_datasets["train"].unique("label"))
-    label_list = sorted(list(label_set)) # Let's sort labels for determinism
+    label_set = set(raw_datasets["support"].unique("label"))
+    label_list = sorted(list(label_set)) + sorted([l for l in raw_datasets["train"].unique("label") if l not in label_set]) # Let's sort labels for determinism
     label_to_id = {v: i for i, v in enumerate(label_list)}
 
     # Load pretrained model and tokenizer
@@ -296,8 +295,6 @@ def main():
         # Map labels to IDs
         if label_to_id is not None and "label" in examples:
             result["label"] = [(label_to_id[l] if l != -1 else -1) for l in examples["label"]]
-        if text2_key not in examples:
-            del result["label"]
         return result
 
     with training_args.main_process_first(desc="dataset map pre-processing"):
@@ -307,49 +304,35 @@ def main():
             load_from_cache_file=not data_args.overwrite_cache,
             desc="Running tokenizer on dataset",
         )
-    if training_args.do_train:
-        if "train" not in raw_datasets:
-            raise ValueError("--do_train requires a train dataset")
-        train_dataset = raw_datasets["train"]
-        if data_args.max_train_samples is not None:
-            train_dataset = train_dataset.select(range(data_args.max_train_samples))
 
-    if training_args.do_eval:
-        if "dev" not in raw_datasets:
-            raise ValueError("--do_eval requires a dev dataset")
-        eval_dataset = raw_datasets["dev"]
-        if data_args.max_eval_samples is not None:
-            eval_dataset = eval_dataset.select(range(data_args.max_eval_samples))
-
+    # Truncate datasets if max samples is specified
+    support_dataset = raw_datasets["support"]
+    train_dataset = raw_datasets["train"]
+    if data_args.max_train_samples is not None:
+        train_dataset = train_dataset.select(range(data_args.max_train_samples))
+    # Log a few random samples from the training set:
+    for index in random.sample(range(len(train_dataset)), 3):
+        logger.info(f"Sample {index} of the training set: {train_dataset[index]}.")
+    eval_dataset = raw_datasets["dev"]
+    if data_args.max_eval_samples is not None:
+        eval_dataset = eval_dataset.select(range(data_args.max_eval_samples))
     if training_args.do_predict:
-        if "test" not in raw_datasets:
-            raise ValueError("--do_predict requires a test dataset")
         predict_dataset = raw_datasets["test"]
         if data_args.max_predict_samples is not None:
             predict_dataset = predict_dataset.select(range(data_args.max_predict_samples))
 
-    # Log a few random samples from the training set:
-    if training_args.do_train:
-        for index in random.sample(range(len(train_dataset)), 3):
-            logger.info(f"Sample {index} of the training set: {train_dataset[index]}.")
+    # You can define your custom compute_metrics function. It takes an `FewshotPrediction` object (a namedtuple with a
+    # support_preds, support_labels, eval_preds, eval_labels field) and has to return a dictionary string to float.
+    def compute_metrics(p: FewshotPrediction):
+        support_preds = p.support_preds[0] if isinstance(p.support_preds, tuple) else p.support_preds
+        eval_preds = p.eval_preds[0] if isinstance(p.eval_preds, tuple) else p.eval_preds
 
-    # Get the metric function
-    metric = load_metric("accuracy")
+        scores = np.einsum('ik,jk->ij', eval_preds, support_preds)
+        indices = np.argmax(scores, axis=-1)[...,None]
+        preds = p.support_labels[None,...].repeat(indices.shape[0], axis=0)
+        preds = np.take_along_axis(preds, indices, axis=-1)
 
-    # You can define your custom compute_metrics function. It takes an `EvalPrediction` object (a namedtuple with a
-    # predictions and label_ids field) and has to return a dictionary string to float.
-    def compute_metrics(p: EvalPrediction):
-        preds = p.predictions[0] if isinstance(p.predictions, tuple) else p.predictions
-        preds = np.squeeze(preds) if is_regression else np.argmax(preds, axis=1)
-        if data_args.task_name is not None:
-            result = metric.compute(predictions=preds, references=p.label_ids)
-            if len(result) > 1:
-                result["combined_score"] = np.mean(list(result.values())).item()
-            return result
-        elif is_regression:
-            return {"mse": ((preds - p.label_ids) ** 2).mean().item()}
-        else:
-            return {"accuracy": (preds == p.label_ids).astype(np.float32).mean().item()}
+        return {"accuracy": (preds == p.eval_labels).astype(np.float32).mean().item()}
 
     # Data collator will default to DataCollatorWithPadding, so we change it if we already did the padding.
     if data_args.pad_to_max_length:
@@ -360,11 +343,12 @@ def main():
         data_collator = None
 
     # Initialize our Trainer
-    trainer = Trainer(
+    trainer = FewshotTrainer(
         model=model,
         args=training_args,
-        train_dataset=train_dataset if training_args.do_train else None,
-        eval_dataset=eval_dataset if training_args.do_eval else None,
+        support_dataset=support_dataset,
+        train_dataset=train_dataset,
+        eval_dataset=eval_dataset,
         compute_metrics=compute_metrics,
         tokenizer=tokenizer,
         data_collator=data_collator,
@@ -392,50 +376,34 @@ def main():
 
     # Evaluation
     if training_args.do_eval:
-        logger.info("*** Evaluate ***")
+        logger.info(f"*** Evaluate {data_args.task_name} ***")
 
-        # Loop to handle MNLI double evaluation (matched, mis-matched)
-        tasks = [data_args.task_name]
-        eval_datasets = [eval_dataset]
+        metrics = trainer.evaluate(support_dataset=support_dataset, eval_dataset=eval_dataset)
 
-        for eval_dataset, task in zip(eval_datasets, tasks):
-            metrics = trainer.evaluate(eval_dataset=eval_dataset)
+        max_eval_samples = (
+            data_args.max_eval_samples if data_args.max_eval_samples is not None else len(eval_dataset)
+        )
+        metrics["eval_samples"] = min(max_eval_samples, len(eval_dataset))
 
-            max_eval_samples = (
-                data_args.max_eval_samples if data_args.max_eval_samples is not None else len(eval_dataset)
-            )
-            metrics["eval_samples"] = min(max_eval_samples, len(eval_dataset))
-
-            trainer.log_metrics("eval", metrics)
-            trainer.save_metrics("eval", metrics)
+        trainer.log_metrics("eval", metrics)
+        trainer.save_metrics("eval", metrics)
 
     if training_args.do_predict:
-        logger.info("*** Predict ***")
+        logger.info(f"*** Predict {data_args.task_name} ***")
 
-        # Loop to handle MNLI double evaluation (matched, mis-matched)
-        tasks = [data_args.task_name]
-        predict_datasets = [predict_dataset]
-        if data_args.task_name == "mnli":
-            tasks.append("mnli-mm")
-            predict_datasets.append(raw_datasets["test_mismatched"])
+        # Removing the `label` columns because it contains -1 and Trainer won't like that.
+        predict_dataset = predict_dataset.remove_columns("label") if "label" in predict_dataset else predict_dataset
+        predictions = trainer.predict(support_dataset=support_dataset, test_dataset=predict_dataset, metric_key_prefix="predict").predictions
+        predictions = np.argmax(predictions, axis=1)
 
-        for predict_dataset, task in zip(predict_datasets, tasks):
-            # Removing the `label` columns because it contains -1 and Trainer won't like that.
-            predict_dataset = predict_dataset.remove_columns("label")
-            predictions = trainer.predict(predict_dataset, metric_key_prefix="predict").predictions
-            predictions = np.squeeze(predictions) if is_regression else np.argmax(predictions, axis=1)
-
-            output_predict_file = os.path.join(training_args.output_dir, f"predict_results_{task}.txt")
-            if trainer.is_world_process_zero():
-                with open(output_predict_file, "w") as writer:
-                    logger.info(f"***** Predict results {task} *****")
-                    writer.write("index\tprediction\n")
-                    for index, item in enumerate(predictions):
-                        if is_regression:
-                            writer.write(f"{index}\t{item:3.3f}\n")
-                        else:
-                            item = label_list[item]
-                            writer.write(f"{index}\t{item}\n")
+        output_predict_file = os.path.join(training_args.output_dir, f"predict_results_{data_args.task_name}.txt")
+        if trainer.is_world_process_zero():
+            with open(output_predict_file, "w") as writer:
+                logger.info(f"***** Predict results {data_args.task_name} *****")
+                writer.write("index\tprediction\n")
+                for index, item in enumerate(predictions):
+                    item = label_list[item]
+                    writer.write(f"{index}\t{item}\n")
 
     if training_args.push_to_hub:
         kwargs = {"finetuned_from": model_args.model_name_or_path, "tasks": "text-fewshot"}
