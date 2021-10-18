@@ -1905,7 +1905,7 @@ class BertForDualPassageEncoder(BertPreTrainedModel):
         """
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
-        if labels is None:
+        if labels is None or len(input_ids.size()) < 3:
             outputs = self.bert(
                 input_ids,
                 attention_mask=attention_mask,
