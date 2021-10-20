@@ -236,7 +236,8 @@ class FewshotTrainer(Trainer):
         eval_dataset: Optional[Dataset] = None,
         tokenizer: Optional[PreTrainedTokenizerBase] = None,
         model_init: Callable[[], PreTrainedModel] = None,
-        compute_metrics: Optional[Callable[[FewshotPrediction], Dict]] = None,
+        compute_predicts: Optional[Callable[[FewshotPrediction], EvalPrediction]] = None,
+        compute_metrics: Optional[Callable[[EvalPrediction], Dict]] = None,
         callbacks: Optional[List[TrainerCallback]] = None,
         optimizers: Tuple[torch.optim.Optimizer, torch.optim.lr_scheduler.LambdaLR] = (None, None),
     ):
@@ -253,6 +254,7 @@ class FewshotTrainer(Trainer):
             optimizers=optimizers,
         )
         self.support_dataset = support_dataset
+        self.compute_predicts = compute_predicts
 
     def _get_support_sampler(self, support_dataset: Dataset) -> Optional[torch.utils.data.sampler.Sampler]:
         # Deprecated code
@@ -612,17 +614,22 @@ class FewshotTrainer(Trainer):
 
         # Metrics!
         if (
-            self.compute_metrics is not None and
+            self.compute_predicts is not None and self.compute_metrics is not None and
             support_preds is not None and support_labels is not None and
             eval_preds is not None and eval_labels is not None
         ):
-            metrics = self.compute_metrics(FewshotPrediction(
+            predicts = self.compute_predicts(FewshotPrediction(
                 support_preds=support_preds,
                 support_labels=support_labels,
                 eval_preds=eval_preds,
                 eval_labels=eval_labels
             ))
+            predictions = predicts.predictions
+            label_ids = predicts.label_ids
+            metrics = self.compute_metrics(predicts)
         else:
+            predictions = None
+            label_ids = None
             metrics = {}
 
         # To be JSON-serializable, we need to remove numpy types or zero-d tensors
@@ -633,7 +640,7 @@ class FewshotTrainer(Trainer):
             if not key.startswith(f"{metric_key_prefix}_"):
                 metrics[f"{metric_key_prefix}_{key}"] = metrics.pop(key)
 
-        return EvalLoopOutput(predictions=eval_preds, label_ids=eval_labels, metrics=metrics, num_samples=num_samples)
+        return EvalLoopOutput(predictions=predictions, label_ids=label_ids, metrics=metrics, num_samples=observed_num_examples)
 
     def prediction_step(
         self,
