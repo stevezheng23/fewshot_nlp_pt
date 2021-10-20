@@ -38,6 +38,7 @@ from transformersX import (
     HfArgumentParser,
     FewshotTrainer,
     FewshotPrediction,
+    EvalPrediction,
     TrainingArguments,
     default_data_collator,
     set_seed,
@@ -321,9 +322,9 @@ def main():
         if data_args.max_predict_samples is not None:
             predict_dataset = predict_dataset.select(range(data_args.max_predict_samples))
 
-    # You can define your custom compute_metrics function. It takes an `FewshotPrediction` object (a namedtuple with a
-    # support_preds, support_labels, eval_preds, eval_labels field) and has to return a dictionary string to float.
-    def compute_metrics(p: FewshotPrediction):
+    # You can define your custom compute_predicts function. It takes a `FewshotPrediction` object (a namedtuple with a
+    # support_preds, support_labels, eval_preds and eval_labels field) and has to return an `EvalPrediction` object.
+    def compute_predicts(p: FewshotPrediction):
         support_preds = p.support_preds[0] if isinstance(p.support_preds, tuple) else p.support_preds
         eval_preds = p.eval_preds[0] if isinstance(p.eval_preds, tuple) else p.eval_preds
 
@@ -332,7 +333,14 @@ def main():
         preds = p.support_labels[None,...].repeat(indices.shape[0], axis=0)
         preds = np.take_along_axis(preds, indices, axis=-1)
 
-        return {"accuracy": (preds == p.eval_labels).astype(np.float32).mean().item()}
+        return EvalPrediction(predictions=preds, label_ids=p.eval_labels)
+
+    # You can define your custom compute_metrics function. It takes an `EvalPrediction` object (a namedtuple with a
+    # predictions and label_ids field) and has to return a dictionary string to float.
+    def compute_metrics(p: EvalPrediction):
+        predictions = p.predictions[0] if isinstance(p.predictions, tuple) else p.predictions
+        label_ids = p.label_ids[0] if isinstance(p.label_ids, tuple) else p.label_ids
+        return {"accuracy": (predictions == label_ids).astype(np.float32).mean().item()}
 
     # Data collator will default to DataCollatorWithPadding, so we change it if we already did the padding.
     if data_args.pad_to_max_length:
@@ -349,6 +357,7 @@ def main():
         support_dataset=support_dataset,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
+        compute_predicts=compute_predicts,
         compute_metrics=compute_metrics,
         tokenizer=tokenizer,
         data_collator=data_collator,
@@ -394,7 +403,6 @@ def main():
         # Removing the `label` columns because it contains -1 and Trainer won't like that.
         predict_dataset = predict_dataset.remove_columns("label") if "label" in predict_dataset else predict_dataset
         predictions = trainer.predict(support_dataset=support_dataset, test_dataset=predict_dataset, metric_key_prefix="predict").predictions
-        predictions = np.argmax(predictions, axis=1)
 
         output_predict_file = os.path.join(training_args.output_dir, f"predict_results_{data_args.task_name}.txt")
         if trainer.is_world_process_zero():

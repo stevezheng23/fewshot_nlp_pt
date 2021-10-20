@@ -82,11 +82,12 @@ class FewshotProcessor:
             return [json.loads(l) for l in f.readlines()]
 
 
-class Clinc150Processor(FewshotProcessor):
-    """Processor for the CLINC150 dataset (Fewshot version)."""
+class DefaultProcessor(FewshotProcessor):
+    """Processor for the default dataset (Fewshot version)."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.task_name = "default"
 
     def get_support_examples(self, data_file):
         """See base class."""
@@ -104,20 +105,6 @@ class Clinc150Processor(FewshotProcessor):
         """See base class."""
         return self._create_examples(self._read_json(os.path.join(data_file)), "test")
 
-    def get_labels(self, examples):
-        """See base class."""
-        labels = set([d["label"] for d in examples])
-        labels = sorted(list(labels))
-        return labels
-    
-    def to_dataset(self, examples):
-        """See base class."""
-        example_dict = defaultdict(list)
-        for d in examples:
-            for k, v in d.items():
-                example_dict[k].append(v)
-        return Dataset.from_dict(example_dict)
-
     def _create_examples(self, lines, set_type):
         """Creates examples for the supprt, train, dev and test sets."""
         if not lines:
@@ -134,20 +121,20 @@ class Clinc150Processor(FewshotProcessor):
                 n = len(t_list)
                 for i in range(n):
                     for j in range(i+1,n):
-                        guid = f"clinc150-{set_type}-{idx}"
+                        guid = f"{self.task_name}-{set_type}-{idx}"
                         text_a = t_list[i]["text"]
                         text_b = t_list[j]["text"]
                         examples.append(InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
                         idx += 1
         elif set_type == "train" and "label" not in lines[0]:
             for (idx, d) in enumerate(lines):
-                guid = d['id'] if "id" in d else f"clinc150-{set_type}-{idx}"
+                guid = d['id'] if "id" in d else f"{self.task_name}-{set_type}-{idx}"
                 text_a = d["text1"]
                 text_b = d["text2"]
                 examples.append(InputExample(guid=guid, text_a=text_a, text_b=text_b, label=guid))
         else:
             for (idx, d) in enumerate(lines):
-                guid = d['id'] if "id" in d else f"clinc150-{set_type}-{idx}"
+                guid = d['id'] if "id" in d else f"{self.task_name}-{set_type}-{idx}"
                 text_a = d["text"]
                 label = d["label"] if set_type != "test" else None
                 examples.append(InputExample(guid=guid, text_a=text_a, text_b=None, label=label))
@@ -155,6 +142,33 @@ class Clinc150Processor(FewshotProcessor):
         return examples
 
 
+class Atis2Processor(DefaultProcessor):
+    """Processor for the ATIS-2 dataset (Fewshot version)."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.task_name = "atis2"
+
+
+class SnipsProcessor(DefaultProcessor):
+    """Processor for the SNIPS dataset (Fewshot version)."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.task_name = "snips"
+
+
+class Clinc150Processor(DefaultProcessor):
+    """Processor for the Clinc150 dataset (Fewshot version)."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.task_name = "clinc150"
+
+
 fewshot_processors = {
+    "default": DefaultProcessor,
+    "atis2": Atis2Processor,
+    "snips": SnipsProcessor,
     "clinc150": Clinc150Processor,
 }
