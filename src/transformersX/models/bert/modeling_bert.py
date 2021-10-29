@@ -1874,6 +1874,7 @@ class BertForDualPassageEncoder(BertPreTrainedModel):
         super().__init__(config)
 
         self.bert = BertModel(config)
+        self.pooler = BertPooler(config)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
         self.init_weights()
@@ -1918,7 +1919,7 @@ class BertForDualPassageEncoder(BertPreTrainedModel):
                 return_dict=return_dict,
             )
 
-            pooled_output = outputs[1]
+            pooled_output = self.pooler(outputs[0])
             pooled_output = self.dropout(pooled_output)
 
             if not return_dict:
@@ -1954,7 +1955,7 @@ class BertForDualPassageEncoder(BertPreTrainedModel):
             return_dict=return_dict,
         )
 
-        src_pooled_output = src_outputs[1]
+        src_pooled_output = self.pooler(src_outputs[0])
         src_pooled_output = self.dropout(src_pooled_output)
 
         trg_outputs = self.bert(
@@ -1969,7 +1970,7 @@ class BertForDualPassageEncoder(BertPreTrainedModel):
             return_dict=return_dict,
         )
 
-        trg_pooled_output = trg_outputs[1]
+        trg_pooled_output = self.pooler(trg_outputs[0])
         trg_pooled_output = self.dropout(trg_pooled_output)
 
         mask = (labels.unsqueeze(-1).expand(-1, labels.size(0)) == labels.unsqueeze(0).expand(labels.size(0), -1)) & (1 - torch.eye(labels.size(0))).to(labels.device).bool()
