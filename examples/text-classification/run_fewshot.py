@@ -332,6 +332,7 @@ def main():
         indices = np.argmax(scores, axis=-1)[...,None]
         preds = p.support_labels[None,...].repeat(indices.shape[0], axis=0)
         preds = np.take_along_axis(preds, indices, axis=-1)
+        preds = np.squeeze(preds, axis=-1)
 
         return EvalPrediction(predictions=preds, label_ids=p.eval_labels)
 
