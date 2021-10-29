@@ -19,6 +19,7 @@ import os
 import csv
 import json
 import dataclasses
+import random
 from collections import defaultdict
 from enum import Enum
 from typing import List, Optional, Union
@@ -36,19 +37,19 @@ logger = logging.get_logger(__name__)
 class FewshotProcessor:
     """Base class for data processor for Fewshot datasets."""
    
-    def get_support_examples(self, data_dir):
+    def get_support_examples(self, data_file):
         """Gets a collection of :class:`InputExample` for the support set."""
         raise NotImplementedError()
 
-    def get_train_examples(self, data_dir):
+    def get_train_examples(self, data_file, per_label_limit=-1):
         """Gets a collection of :class:`InputExample` for the train set."""
         raise NotImplementedError()
 
-    def get_dev_examples(self, data_dir):
+    def get_dev_examples(self, data_file):
         """Gets a collection of :class:`InputExample` for the dev set."""
         raise NotImplementedError()
 
-    def get_test_examples(self, data_dir):
+    def get_test_examples(self, data_file):
         """Gets a collection of :class:`InputExample` for the test set."""
         raise NotImplementedError()
 
@@ -93,9 +94,9 @@ class DefaultProcessor(FewshotProcessor):
         """See base class."""
         return self._create_examples(self._read_json(os.path.join(data_file)), "support")
 
-    def get_train_examples(self, data_file):
+    def get_train_examples(self, data_file, per_label_limit=-1):
         """See base class."""
-        return self._create_examples(self._read_json(os.path.join(data_file)), "train")
+        return self._create_examples(self._read_json(os.path.join(data_file)), "train", per_label_limit)
 
     def get_dev_examples(self, data_file):
         """See base class."""
@@ -105,7 +106,7 @@ class DefaultProcessor(FewshotProcessor):
         """See base class."""
         return self._create_examples(self._read_json(os.path.join(data_file)), "test")
 
-    def _create_examples(self, lines, set_type):
+    def _create_examples(self, lines, set_type, per_label_limit=-1):
         """Creates examples for the supprt, train, dev and test sets."""
         if not lines:
             return []
@@ -117,6 +118,7 @@ class DefaultProcessor(FewshotProcessor):
                 example_dict[d["label"]].append(d)
             idx = 0
             for label in example_dict:
+                p_list = []
                 t_list = example_dict[label]
                 n = len(t_list)
                 for i in range(n):
@@ -124,8 +126,12 @@ class DefaultProcessor(FewshotProcessor):
                         guid = f"{self.task_name}-{set_type}-{idx}"
                         text_a = t_list[i]["text"]
                         text_b = t_list[j]["text"]
-                        examples.append(InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
+                        p_list.append(InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
                         idx += 1
+                random.shuffle(p_list)
+                if per_label_limit > 0:
+                    p_list = p_list[:per_label_limit]
+                examples.extend(p_list)
         elif set_type == "train" and "label" not in lines[0]:
             for (idx, d) in enumerate(lines):
                 guid = d['id'] if "id" in d else f"{self.task_name}-{set_type}-{idx}"
