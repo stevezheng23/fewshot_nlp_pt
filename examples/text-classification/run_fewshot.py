@@ -88,6 +88,12 @@ class DataTrainingArguments:
             "If False, will pad the samples dynamically when batching to the maximum length in the batch."
         },
     )
+    max_train_samples_per_label: Optional[int] = field(
+        default=None,
+        metadata={
+            "help": "Truncate the number of training examples per label to this value if set."
+        },
+    )
     max_train_samples: Optional[int] = field(
         default=None,
         metadata={
@@ -232,7 +238,7 @@ def main():
     processor = processors[data_args.task_name]()
     dataset_dict = {
         "support": FewshotProcessor.to_datasets(processor.get_support_examples(data_args.support_file)),
-        "train": FewshotProcessor.to_datasets(processor.get_train_examples(data_args.train_file)),
+        "train": FewshotProcessor.to_datasets(processor.get_train_examples(data_args.train_file, data_args.max_train_samples_per_label)),
         "dev": FewshotProcessor.to_datasets(processor.get_dev_examples(data_args.dev_file)),
     }
     if training_args.do_predict:
