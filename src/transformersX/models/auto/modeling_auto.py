@@ -227,6 +227,7 @@ from ..mpnet.modeling_mpnet import (
     MPNetModel,
 )
 from ..mt5.modeling_mt5 import MT5ForConditionalGeneration, MT5Model
+from ..mixupbert.modeling_mixupbert import MixupBertForSequenceClassification, MixupBertModel
 from ..openai.modeling_openai import OpenAIGPTForSequenceClassification, OpenAIGPTLMHeadModel, OpenAIGPTModel
 from ..pegasus.modeling_pegasus import PegasusForCausalLM, PegasusForConditionalGeneration, PegasusModel
 from ..prophetnet.modeling_prophetnet import ProphetNetForCausalLM, ProphetNetForConditionalGeneration, ProphetNetModel
@@ -336,6 +337,7 @@ from .configuration_auto import (
     CLIPConfig,
     ConvBertConfig,
     CTRLConfig,
+    CutoffBertConfig,
     DebertaConfig,
     DebertaV2Config,
     DeiTConfig,
@@ -363,6 +365,7 @@ from .configuration_auto import (
     MobileBertConfig,
     MPNetConfig,
     MT5Config,
+    MixupBertConfig,
     OpenAIGPTConfig,
     PegasusConfig,
     ProphetNetConfig,
@@ -452,6 +455,8 @@ MODEL_MAPPING = OrderedDict(
         (MPNetConfig, MPNetModel),
         (TapasConfig, TapasModel),
         (MarianConfig, MarianModel),
+        (CutoffBertConfig, CutoffBertModel),
+        (MixupBertConfig, MixupBertModel),
         (IBertConfig, IBertModel),
     ]
 )
@@ -696,6 +701,7 @@ MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING = OrderedDict(
         (MPNetConfig, MPNetForSequenceClassification),
         (TapasConfig, TapasForSequenceClassification),
         (CutoffBertConfig, CutoffBertForSequenceClassification),
+        (MixupBertConfig, MixupBertForSequenceClassification),
         (IBertConfig, IBertForSequenceClassification),
     ]
 )

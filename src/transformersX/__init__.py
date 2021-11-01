@@ -221,6 +221,7 @@ _import_structure = {
     "models.mobilebert": ["MOBILEBERT_PRETRAINED_CONFIG_ARCHIVE_MAP", "MobileBertConfig", "MobileBertTokenizer"],
     "models.mpnet": ["MPNET_PRETRAINED_CONFIG_ARCHIVE_MAP", "MPNetConfig", "MPNetTokenizer"],
     "models.mt5": ["MT5Config"],
+    "models.mixupbert": ["MIXUPBERT_PRETRAINED_CONFIG_ARCHIVE_MAP", "MixupBertConfig","MixupBertTokenizer"],
     "models.openai": ["OPENAI_GPT_PRETRAINED_CONFIG_ARCHIVE_MAP", "OpenAIGPTConfig", "OpenAIGPTTokenizer"],
     "models.pegasus": ["PegasusConfig"],
     "models.phobert": ["PhobertTokenizer"],
@@ -965,6 +966,15 @@ if is_torch_available():
         ]
     )
     _import_structure["models.mt5"].extend(["MT5EncoderModel", "MT5ForConditionalGeneration", "MT5Model"])
+    _import_structure["models.mixupbert"].extend(
+        [
+            "MIXUPBERT_PRETRAINED_MODEL_ARCHIVE_LIST",
+            "MixupBertForSequenceClassification",
+            "MixupBertModel",
+            "MixupBertPreTrainedModel",
+            "load_tf_weights_in_mixupbert",
+        ]
+    )
     _import_structure["models.openai"].extend(
         [
             "OPENAI_GPT_PRETRAINED_MODEL_ARCHIVE_LIST",
@@ -1910,6 +1920,7 @@ if TYPE_CHECKING:
     from .models.mobilebert import MOBILEBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, MobileBertConfig, MobileBertTokenizer
     from .models.mpnet import MPNET_PRETRAINED_CONFIG_ARCHIVE_MAP, MPNetConfig, MPNetTokenizer
     from .models.mt5 import MT5Config
+    from .models.mixupbert import MIXUPBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, MixupBertConfig, MixupBertTokenizer
     from .models.openai import OPENAI_GPT_PRETRAINED_CONFIG_ARCHIVE_MAP, OpenAIGPTConfig, OpenAIGPTTokenizer
     from .models.pegasus import PegasusConfig
     from .models.phobert import PhobertTokenizer
@@ -2538,6 +2549,13 @@ if TYPE_CHECKING:
             MPNetPreTrainedModel,
         )
         from .models.mt5 import MT5EncoderModel, MT5ForConditionalGeneration, MT5Model
+        from .models.mixupbert import (
+            MIXUPBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
+            MixupBertForSequenceClassification,
+            MixupBertModel,
+            MixupBertPreTrainedModel,
+            load_tf_weights_in_mixupbert,
+        )
         from .models.openai import (
             OPENAI_GPT_PRETRAINED_MODEL_ARCHIVE_LIST,
             OpenAIGPTDoubleHeadsModel,
