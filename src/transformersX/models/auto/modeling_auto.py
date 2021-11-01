@@ -100,6 +100,7 @@ from ..convbert.modeling_convbert import (
     ConvBertModel,
 )
 from ..ctrl.modeling_ctrl import CTRLForSequenceClassification, CTRLLMHeadModel, CTRLModel
+from ..cutoffbert.modeling_cutoffbert import CutoffBertForSequenceClassification, CutoffBertModel
 from ..deberta.modeling_deberta import (
     DebertaForMaskedLM,
     DebertaForQuestionAnswering,
@@ -580,7 +581,7 @@ MODEL_FOR_CAUSAL_LM_MAPPING = OrderedDict(
 
 MODEL_FOR_DUAL_PASSAGE_ENCODER_MAPPING = OrderedDict(
     [
-        # Model for Sequence Classification mapping
+        # Model for Dual Passage Encoder mapping
         (BertConfig, BertForDualPassageEncoder),
     ]
 )
@@ -694,6 +695,7 @@ MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING = OrderedDict(
         (TransfoXLConfig, TransfoXLForSequenceClassification),
         (MPNetConfig, MPNetForSequenceClassification),
         (TapasConfig, TapasForSequenceClassification),
+        (CutoffBertConfig, CutoffBertForSequenceClassification),
         (IBertConfig, IBertForSequenceClassification),
     ]
 )

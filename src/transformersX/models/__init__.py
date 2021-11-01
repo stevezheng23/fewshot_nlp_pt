@@ -36,6 +36,7 @@ from . import (
     convbert,
     cpm,
     ctrl,
+    cutoffbert,
     deberta,
     deit,
     detr,
