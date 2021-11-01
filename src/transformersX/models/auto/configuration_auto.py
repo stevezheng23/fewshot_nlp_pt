@@ -38,6 +38,7 @@ from ..canine.configuration_canine import CANINE_PRETRAINED_CONFIG_ARCHIVE_MAP, 
 from ..clip.configuration_clip import CLIP_PRETRAINED_CONFIG_ARCHIVE_MAP, CLIPConfig
 from ..convbert.configuration_convbert import CONVBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, ConvBertConfig
 from ..ctrl.configuration_ctrl import CTRL_PRETRAINED_CONFIG_ARCHIVE_MAP, CTRLConfig
+from ..cutoffbert.configuration_cutoffbert import CUTOFFBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, CutoffBertConfig
 from ..deberta.configuration_deberta import DEBERTA_PRETRAINED_CONFIG_ARCHIVE_MAP, DebertaConfig
 from ..deberta_v2.configuration_deberta_v2 import DEBERTA_V2_PRETRAINED_CONFIG_ARCHIVE_MAP, DebertaV2Config
 from ..deit.configuration_deit import DEIT_PRETRAINED_CONFIG_ARCHIVE_MAP, DeiTConfig
@@ -222,6 +223,7 @@ CONFIG_MAPPING = OrderedDict(
         ("layoutlm", LayoutLMConfig),
         ("rag", RagConfig),
         ("tapas", TapasConfig),
+        ("cutoffbert", CutoffBertConfig),
     ]
 )
 
@@ -290,6 +292,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("mpnet", "MPNet"),
         ("tapas", "TAPAS"),
         ("hubert", "Hubert"),
+        ("cutoffbert", "CutoffBERT"),
     ]
 )
 

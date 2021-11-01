@@ -184,6 +184,7 @@ _import_structure = {
     "models.convbert": ["CONVBERT_PRETRAINED_CONFIG_ARCHIVE_MAP", "ConvBertConfig", "ConvBertTokenizer"],
     "models.cpm": ["CpmTokenizer"],
     "models.ctrl": ["CTRL_PRETRAINED_CONFIG_ARCHIVE_MAP", "CTRLConfig", "CTRLTokenizer"],
+    "models.cutoffbert": ["CUTOFFBERT_PRETRAINED_CONFIG_ARCHIVE_MAP", "CutoffBertConfig","CutoffBertTokenizer"],
     "models.deberta": ["DEBERTA_PRETRAINED_CONFIG_ARCHIVE_MAP", "DebertaConfig", "DebertaTokenizer"],
     "models.deberta_v2": ["DEBERTA_V2_PRETRAINED_CONFIG_ARCHIVE_MAP", "DebertaV2Config"],
     "models.deit": ["DEIT_PRETRAINED_CONFIG_ARCHIVE_MAP", "DeiTConfig"],
@@ -694,6 +695,15 @@ if is_torch_available():
             "CTRLLMHeadModel",
             "CTRLModel",
             "CTRLPreTrainedModel",
+        ]
+    )
+    _import_structure["models.cutoffbert"].extend(
+        [
+            "CUTOFFBERT_PRETRAINED_MODEL_ARCHIVE_LIST",
+            "CutoffBertForSequenceClassification",
+            "CutoffBertModel",
+            "CutoffBertPreTrainedModel",
+            "load_tf_weights_in_cutoffbert",
         ]
     )
     _import_structure["models.deberta"].extend(
@@ -1863,6 +1873,7 @@ if TYPE_CHECKING:
     from .models.convbert import CONVBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, ConvBertConfig, ConvBertTokenizer
     from .models.cpm import CpmTokenizer
     from .models.ctrl import CTRL_PRETRAINED_CONFIG_ARCHIVE_MAP, CTRLConfig, CTRLTokenizer
+    from .models.cutoffbert import CUTOFFBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, CutoffBertConfig, CutoffBertTokenizer
     from .models.deberta import DEBERTA_PRETRAINED_CONFIG_ARCHIVE_MAP, DebertaConfig, DebertaTokenizer
     from .models.deberta_v2 import DEBERTA_V2_PRETRAINED_CONFIG_ARCHIVE_MAP, DebertaV2Config
     from .models.deit import DEIT_PRETRAINED_CONFIG_ARCHIVE_MAP, DeiTConfig
@@ -2304,6 +2315,13 @@ if TYPE_CHECKING:
             CTRLLMHeadModel,
             CTRLModel,
             CTRLPreTrainedModel,
+        )
+        from .models.cutoffbert import (
+            CUTOFFBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
+            CutoffBertForSequenceClassification,
+            CutoffBertModel,
+            CutoffBertPreTrainedModel,
+            load_tf_weights_in_cutoffbert,
         )
         from .models.deberta import (
             DEBERTA_PRETRAINED_MODEL_ARCHIVE_LIST,
