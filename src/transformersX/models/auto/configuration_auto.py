@@ -66,6 +66,7 @@ from ..megatron_bert.configuration_megatron_bert import MEGATRON_BERT_PRETRAINED
 from ..mobilebert.configuration_mobilebert import MobileBertConfig
 from ..mpnet.configuration_mpnet import MPNET_PRETRAINED_CONFIG_ARCHIVE_MAP, MPNetConfig
 from ..mt5.configuration_mt5 import MT5Config
+from ..mixupbert.configuration_mixupbert import MIXUPBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, MixupBertConfig
 from ..openai.configuration_openai import OPENAI_GPT_PRETRAINED_CONFIG_ARCHIVE_MAP, OpenAIGPTConfig
 from ..pegasus.configuration_pegasus import PegasusConfig
 from ..prophetnet.configuration_prophetnet import PROPHETNET_PRETRAINED_CONFIG_ARCHIVE_MAP, ProphetNetConfig
@@ -224,6 +225,7 @@ CONFIG_MAPPING = OrderedDict(
         ("rag", RagConfig),
         ("tapas", TapasConfig),
         ("cutoffbert", CutoffBertConfig),
+        ("mixupbert", MixupBertConfig),
     ]
 )
 
@@ -293,6 +295,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("tapas", "TAPAS"),
         ("hubert", "Hubert"),
         ("cutoffbert", "CutoffBERT"),
+        ("mixupbert", "MixupBERT"),
     ]
 )
 

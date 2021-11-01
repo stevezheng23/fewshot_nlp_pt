@@ -64,6 +64,7 @@ from . import (
     mobilebert,
     mpnet,
     mt5,
+    mixupbert,
     openai,
     pegasus,
     phobert,

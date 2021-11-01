@@ -57,6 +57,7 @@ from ..luke.tokenization_luke import LukeTokenizer
 from ..lxmert.tokenization_lxmert import LxmertTokenizer
 from ..mobilebert.tokenization_mobilebert import MobileBertTokenizer
 from ..mpnet.tokenization_mpnet import MPNetTokenizer
+from ..mixupbert.tokenization_mixupbert import MixupBertTokenizer
 from ..openai.tokenization_openai import OpenAIGPTTokenizer
 from ..phobert.tokenization_phobert import PhobertTokenizer
 from ..prophetnet.tokenization_prophetnet import ProphetNetTokenizer
