@@ -550,18 +550,18 @@ class CutoffBertForSequenceClassification(CutoffBertPreTrainedModel):
         loss_fct = CrossEntropyLoss()
         loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
         if self.js_loss_wgt > 0:
-            kl_loss_fct = KLDivLoss()
+            kl_loss_fct = KLDivLoss(reduction="batchmean")
             src_logits, trg_logits = logits.chunk(2, dim=1)
             src_logits, trg_logits = src_logits.squeeze(dim=1).contiguous(), trg_logits.squeeze(dim=1).contiguous()
             mean_logits = (src_logits + trg_logits) * 0.5
             src_loss = kl_loss_fct(
-                F.log_softmax(mean_logits / self.temperature, dim=-1),
-                F.softmax(src_logits / self.temperature, dim=-1)
-            ) * (self.temperature) ** 2
+                F.log_softmax(src_logits / self.temperature, dim=-1),
+                F.softmax(mean_logits / self.temperature, dim=-1)
+            ) * (self.temperature ** 2)
             trg_loss = kl_loss_fct(
-                F.log_softmax(mean_logits / self.temperature, dim=-1),
-                F.softmax(trg_logits / self.temperature, dim=-1)
-            ) * (self.temperature) ** 2
+                F.log_softmax(trg_logits / self.temperature, dim=-1),
+                F.softmax(mean_logits / self.temperature, dim=-1)
+            ) * (self.temperature ** 2)
             js_loss = (src_loss + trg_loss) * 0.5
             loss += js_loss * self.js_loss_wgt
         
