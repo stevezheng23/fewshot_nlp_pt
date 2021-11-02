@@ -148,9 +148,9 @@ class CutoffBertConfig(PretrainedConfig):
         self.position_embedding_type = position_embedding_type
         self.use_cache = use_cache
         self.classifier_dropout = classifier_dropout
-        self.cls_token_id=cls_token_id,
-        self.sep_token_id=sep_token_id,
-        self.mask_token_id=mask_token_id,
+        self.cls_token_id = cls_token_id
+        self.sep_token_id = sep_token_id
+        self.mask_token_id = mask_token_id
         self.cutoff_masking_prob = cutoff_masking_prob
         self.cutoff_temperature = cutoff_temperature
         self.cutoff_js_loss_wgt = cutoff_js_loss_wgt
