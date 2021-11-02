@@ -552,9 +552,7 @@ class CutoffBertForSequenceClassification(CutoffBertPreTrainedModel):
         if self.js_loss_wgt > 0:
             kl_loss_fct = KLDivLoss()
             src_logits, trg_logits = logits.chunk(2, dim=1)
-            print(src_logits.size(), trg_logits.size())
-            src_logits, trg_logits = src_logits.squeeze(dim=1), trg_logits.squeeze(dim=1)
-            print(src_logits.size(), trg_logits.size())
+            src_logits, trg_logits = src_logits.squeeze(dim=1).contiguous(), trg_logits.squeeze(dim=1).contiguous()
             mean_logits = (src_logits + trg_logits) * 0.5
             src_loss = kl_loss_fct(
                 F.log_softmax(mean_logits / self.temperature, dim=-1),
@@ -568,6 +566,7 @@ class CutoffBertForSequenceClassification(CutoffBertPreTrainedModel):
             loss += js_loss * self.js_loss_wgt
         
         logits, _ = logits.chunk(2, dim=1)
+        logits = logits.squeeze(1).contiguous()
 
         if not return_dict:
             return (loss, logits)
