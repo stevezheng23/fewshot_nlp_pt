@@ -41,7 +41,7 @@ class FewshotProcessor:
         """Gets a collection of :class:`InputExample` for the support set."""
         raise NotImplementedError()
 
-    def get_train_examples(self, data_file, per_label_limit=-1):
+    def get_train_examples(self, data_file, per_label_limit=None):
         """Gets a collection of :class:`InputExample` for the train set."""
         raise NotImplementedError()
 
@@ -94,7 +94,7 @@ class DefaultProcessor(FewshotProcessor):
         """See base class."""
         return self._create_examples(self._read_json(os.path.join(data_file)), "support")
 
-    def get_train_examples(self, data_file, per_label_limit=-1):
+    def get_train_examples(self, data_file, per_label_limit=None):
         """See base class."""
         return self._create_examples(self._read_json(os.path.join(data_file)), "train", per_label_limit)
 
@@ -106,7 +106,7 @@ class DefaultProcessor(FewshotProcessor):
         """See base class."""
         return self._create_examples(self._read_json(os.path.join(data_file)), "test")
 
-    def _create_examples(self, lines, set_type, per_label_limit=-1):
+    def _create_examples(self, lines, set_type, per_label_limit=None):
         """Creates examples for the supprt, train, dev and test sets."""
         if not lines:
             return []
@@ -129,7 +129,7 @@ class DefaultProcessor(FewshotProcessor):
                         p_list.append(InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
                         idx += 1
                 random.shuffle(p_list)
-                if per_label_limit > 0:
+                if per_label_limit is not None and per_label_limit > 0:
                     p_list = p_list[:per_label_limit]
                 examples.extend(p_list)
         elif set_type == "train" and "label" not in lines[0]:

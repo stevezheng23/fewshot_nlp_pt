@@ -249,6 +249,7 @@ def main():
     label_set = set(raw_datasets["support"].unique("label"))
     label_list = sorted(list(label_set)) + sorted([l for l in raw_datasets["train"].unique("label") if l not in label_set]) # Let's sort labels for determinism
     label_to_id = {v: i for i, v in enumerate(label_list)}
+    num_labels = len(label_list)
 
     # Load pretrained model and tokenizer
     #
@@ -256,6 +257,7 @@ def main():
     # download model & vocab.
     config = AutoConfig.from_pretrained(
         model_args.config_name if model_args.config_name else model_args.model_name_or_path,
+        num_labels=num_labels,
         finetuning_task=data_args.task_name,
         cache_dir=model_args.cache_dir,
         revision=model_args.model_revision,
