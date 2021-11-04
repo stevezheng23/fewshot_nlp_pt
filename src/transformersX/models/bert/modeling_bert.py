@@ -1876,6 +1876,7 @@ class BertForDualPassageEncoder(BertPreTrainedModel):
         self.bert = BertModel(config)
         self.pooler = BertPooler(config)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
+        self.classifier = nn.Linear(config.hidden_size, config.num_labels)
 
         self.init_weights()
 
@@ -1955,9 +1956,6 @@ class BertForDualPassageEncoder(BertPreTrainedModel):
             return_dict=return_dict,
         )
 
-        src_pooled_output = self.pooler(src_outputs[0])
-        src_pooled_output = self.dropout(src_pooled_output)
-
         trg_outputs = self.bert(
             trg_input_ids,
             attention_mask=trg_attention_mask,
@@ -1970,15 +1968,22 @@ class BertForDualPassageEncoder(BertPreTrainedModel):
             return_dict=return_dict,
         )
 
-        trg_pooled_output = self.pooler(trg_outputs[0])
-        trg_pooled_output = self.dropout(trg_pooled_output)
+        src_pooled_output = self.dropout(self.pooler(src_outputs[0]))
+        trg_pooled_output = self.dropout(self.pooler(trg_outputs[0]))
 
         mask = (labels.unsqueeze(-1).expand(-1, labels.size(0)) == labels.unsqueeze(0).expand(labels.size(0), -1)) & (1 - torch.eye(labels.size(0))).to(labels.device).bool()
-        logits = torch.einsum('ik,jk->ij', src_pooled_output, trg_pooled_output).masked_fill(mask, float('-inf'))
-        labels = torch.argmax(torch.eye(labels.size(0)).to(labels.device), dim=-1)
+        cl_logits = torch.einsum('ik,jk->ij', src_pooled_output, trg_pooled_output).masked_fill(mask, float('-inf'))
+        cl_labels = torch.argmax(torch.eye(labels.size(0)).to(labels.device), dim=-1)
+
+        src_logits = self.classifier(self.dropout(src_outputs[1]))
+        trg_logits = self.classifier(self.dropout(trg_outputs[1]))
         
         loss_fct = CrossEntropyLoss()
-        loss = loss_fct(logits, labels)
+        cl_loss = loss_fct(cl_logits, cl_labels)
+        src_loss = loss_fct(src_logits.view(-1, self.num_labels), labels.view(-1))
+        trg_loss = loss_fct(trg_logits.view(-1, self.num_labels), labels.view(-1))
+        loss = cl_loss + src_loss + trg_loss
+        logits = src_logits + trg_logits
 
         if not return_dict:
             return (loss, logits,)
