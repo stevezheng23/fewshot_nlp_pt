@@ -1870,14 +1870,16 @@ class BertForQuestionAnswering(BertPreTrainedModel):
     BERT_START_DOCSTRING,
 )
 class BertForDualPassageEncoder(BertPreTrainedModel):
-    def __init__(self, config):
+    def __init__(self, config, cls_loss_wgt=None):
         super().__init__(config)
         self.num_labels = config.num_labels
+        self.cls_loss_wgt = cls_loss_wgt
 
         self.bert = BertModel(config)
         self.pooler = BertPooler(config)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
-        self.classifier = nn.Linear(config.hidden_size, config.num_labels)
+        if self.cls_loss_wgt is not None and cls_loss_wgt > 0.0:
+            self.classifier = nn.Linear(config.hidden_size, config.num_labels)
 
         self.init_weights()
 
@@ -1975,16 +1977,22 @@ class BertForDualPassageEncoder(BertPreTrainedModel):
         mask = (labels.unsqueeze(-1).expand(-1, labels.size(0)) == labels.unsqueeze(0).expand(labels.size(0), -1)) & (1 - torch.eye(labels.size(0))).to(labels.device).bool()
         cl_logits = torch.einsum('ik,jk->ij', src_pooled_output, trg_pooled_output).masked_fill(mask, float('-inf'))
         cl_labels = torch.argmax(torch.eye(labels.size(0)).to(labels.device), dim=-1)
-
-        src_logits = self.classifier(self.dropout(src_outputs[1]))
-        trg_logits = self.classifier(self.dropout(trg_outputs[1]))
         
         loss_fct = CrossEntropyLoss()
         cl_loss = loss_fct(cl_logits, cl_labels)
-        src_loss = loss_fct(src_logits.view(-1, self.num_labels), labels.view(-1))
-        trg_loss = loss_fct(trg_logits.view(-1, self.num_labels), labels.view(-1))
-        loss = cl_loss + src_loss + trg_loss
-        logits = src_logits + trg_logits
+
+        if self.cls_loss_wgt is not None and self.cls_loss_wgt > 0.0:
+            src_logits = self.classifier(self.dropout(src_outputs[1]))
+            trg_logits = self.classifier(self.dropout(trg_outputs[1]))
+            src_loss = loss_fct(src_logits.view(-1, self.num_labels), labels.view(-1))
+            trg_loss = loss_fct(trg_logits.view(-1, self.num_labels), labels.view(-1))
+            cls_loss = src_loss + trg_loss
+            cls_logits = src_logits + trg_logits
+            loss = cl_loss + cls_loss * self.cls_loss_wgt
+            logits = cls_logits
+        else:
+            loss = cl_loss
+            logits = cl_logits
 
         if not return_dict:
             return (loss, logits,)
