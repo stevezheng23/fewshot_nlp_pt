@@ -435,7 +435,7 @@ class C2BertModel(C2BertPreTrainedModel):
 @add_start_docstrings(
     """
     C2Bert Model transformer with a sequence classification head on top (a linear layer on top of the pooled
-    output) + Cut-off data augmentation support.
+    output) + contrasitve learning support.
     """,
     C2BERT_START_DOCSTRING,
 )
@@ -457,10 +457,11 @@ class C2BertForSequenceClassification(C2BertPreTrainedModel):
         )
         self.dropout = nn.Dropout(classifier_dropout)
         self.classifier = nn.Linear(config.hidden_size, config.num_labels)
+        self.pooler = C2BertPooler(config)
 
         self.init_weights()
     
-    def _apply_cutoff(self, inputs):
+    def _apply_masking(self, inputs):
         masked_inputs = inputs.clone()
         valid_masking_indices = (inputs != self.cls_token_id) & (inputs != self.sep_token_id)
         random_masking_indices = torch.bernoulli(torch.full(inputs.shape, self.masking_prob, device=inputs.device)).bool()
@@ -522,7 +523,7 @@ class C2BertForSequenceClassification(C2BertPreTrainedModel):
             )
 
         b, l = input_ids.size()
-        masked_input_ids = self._apply_cutoff(input_ids.clone())
+        masked_input_ids = self._apply_masking(input_ids.clone())
         flatten_input_ids = torch.stack((input_ids, masked_input_ids), dim=1).reshape(-1, l)
         flatten_attention_mask = attention_mask.unsqueeze(1).expand(-1, 2, -1).reshape(-1, l) if attention_mask is not None else None
         flatten_token_type_ids = token_type_ids.unsqueeze(1).expand(-1, 2, -1).reshape(-1, l) if token_type_ids is not None else None
@@ -541,17 +542,22 @@ class C2BertForSequenceClassification(C2BertPreTrainedModel):
             return_dict=return_dict,
         )
 
-        flatten_pooled_output = self.dropout(flatten_outputs[1])
-        flatten_logits = self.classifier(flatten_pooled_output)
-
-        logits = flatten_logits.reshape(b, 2, self.config.num_labels)
-        labels = labels.unsqueeze(1).expand(-1, 2).contiguous()
+        flatten_pooled_output = self.dropout(self.pooler(flatten_outputs[0]))
+        flatten_logits = self.classifier(self.dropout(flatten_outputs[1]))
         
-        src_logits, trg_logits = logits.chunk(2, dim=1)
-        src_logits, trg_logits = src_logits.squeeze(dim=1).contiguous(), trg_logits.squeeze(dim=1).contiguous()
+        pooled_output, masked_pooled_output = flatten_pooled_output.reshape(b, 2, self.config.hidden_size).chunk(2, dim=1)
+        pooled_output, masked_pooled_output = pooled_output.squeeze(dim=1).contiguous(), masked_pooled_output.squeeze(dim=1).contiguous()
+        logits, masked_logits = flatten_logits.reshape(b, 2, self.config.num_labels).chunk(2, dim=1)
+        logits, masked_logits = logits.squeeze(dim=1).contiguous(), masked_logits.squeeze(dim=1).contiguous()
+
+        mask = (labels.unsqueeze(-1).expand(-1, b) == labels.unsqueeze(0).expand(b, -1)) & (1 - torch.eye(b)).to(labels.device).bool()
+        cl_logits = torch.einsum('ik,jk->ij', pooled_output, masked_pooled_output).masked_fill(mask, float('-inf'))
+        cl_labels = torch.argmax(torch.eye(b).to(labels.device), dim=-1)
 
         loss_fct = CrossEntropyLoss()
-        loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
+        cls_loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
+        cl_loss = loss_fct(cl_logits.view(-1, b), cl_labels.view(-1))
+        loss = cls_loss * self.cls_loss_wgt + cl_loss * self.cl_loss_wgt
 
         if not return_dict:
             return (loss, logits)
