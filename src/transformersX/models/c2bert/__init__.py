@@ -40,7 +40,7 @@ if TYPE_CHECKING:
     from .tokenization_c2bert import C2BertTokenizer
 
     if is_torch_available():
-        from .modeling_c3bert import (
+        from .modeling_c2bert import (
             C2BERT_PRETRAINED_MODEL_ARCHIVE_LIST,
             C2BertForSequenceClassification,
             C2BertModel,

@@ -152,5 +152,5 @@ class C2BertConfig(PretrainedConfig):
         self.sep_token_id = sep_token_id
         self.mask_token_id = mask_token_id
         self.c2_masking_prob = c2_masking_prob
-        self.c2_temperature = c2_temperature
-        self.c2_js_loss_wgt = c2_js_loss_wgt
+        self.c2_cls_loss_wgt = c2_cls_loss_wgt
+        self.c2_cl_loss_wgt = c2_cl_loss_wgt

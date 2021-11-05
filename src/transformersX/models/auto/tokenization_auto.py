@@ -85,6 +85,8 @@ from .configuration_auto import (
     CanineConfig,
     ConvBertConfig,
     CTRLConfig,
+    CutoffBertConfig,
+    C2BertConfig,
     DebertaConfig,
     DebertaV2Config,
     DistilBertConfig,
@@ -105,6 +107,7 @@ from .configuration_auto import (
     M2M100Config,
     MarianConfig,
     MBartConfig,
+    MixupBertConfig,
     MobileBertConfig,
     MPNetConfig,
     MT5Config,
@@ -304,6 +307,9 @@ TOKENIZER_MAPPING = OrderedDict(
         (LukeConfig, (LukeTokenizer, None)),
         (BigBirdPegasusConfig, (PegasusTokenizer, PegasusTokenizerFast)),
         (CanineConfig, (CanineTokenizer, None)),
+        (C2BertConfig, (C2BertTokenizer, None)),
+        (CutoffBertConfig, (CutoffBertTokenizer, None)),
+        (MixupBertConfig, (MixupBertTokenizer, None)),
     ]
 )
 
