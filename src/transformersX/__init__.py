@@ -172,6 +172,7 @@ _import_structure = {
         "BlenderbotSmallTokenizer",
     ],
     "models.byt5": ["ByT5Tokenizer"],
+    "models.c2bert": ["C2BERT_PRETRAINED_CONFIG_ARCHIVE_MAP", "C2BertConfig","C2BertTokenizer"],
     "models.camembert": ["CAMEMBERT_PRETRAINED_CONFIG_ARCHIVE_MAP", "CamembertConfig"],
     "models.canine": ["CANINE_PRETRAINED_CONFIG_ARCHIVE_MAP", "CanineConfig", "CanineTokenizer"],
     "models.clip": [
@@ -639,6 +640,15 @@ if is_torch_available():
             "BlenderbotSmallForConditionalGeneration",
             "BlenderbotSmallModel",
             "BlenderbotSmallPreTrainedModel",
+        ]
+    )
+    _import_structure["models.c2bert"].extend(
+        [
+            "C2BERT_PRETRAINED_MODEL_ARCHIVE_LIST",
+            "C2BertForSequenceClassification",
+            "C2BertModel",
+            "C2BertPreTrainedModel",
+            "load_tf_weights_in_c2bert",
         ]
     )
     _import_structure["models.camembert"].extend(
@@ -1871,6 +1881,7 @@ if TYPE_CHECKING:
         BlenderbotSmallTokenizer,
     )
     from .models.byt5 import ByT5Tokenizer
+    from .models.c2bert import C2BERT_PRETRAINED_CONFIG_ARCHIVE_MAP, C2BertConfig, C2BertTokenizer
     from .models.camembert import CAMEMBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, CamembertConfig
     from .models.canine import CANINE_PRETRAINED_CONFIG_ARCHIVE_MAP, CanineConfig, CanineTokenizer
     from .models.clip import (
@@ -2279,6 +2290,13 @@ if TYPE_CHECKING:
             BlenderbotSmallForConditionalGeneration,
             BlenderbotSmallModel,
             BlenderbotSmallPreTrainedModel,
+        )
+        from .models.c2bert import (
+            C2BERT_PRETRAINED_MODEL_ARCHIVE_LIST,
+            C2BertForSequenceClassification,
+            C2BertModel,
+            C2BertPreTrainedModel,
+            load_tf_weights_in_c2bert,
         )
         from .models.camembert import (
             CAMEMBERT_PRETRAINED_MODEL_ARCHIVE_LIST,

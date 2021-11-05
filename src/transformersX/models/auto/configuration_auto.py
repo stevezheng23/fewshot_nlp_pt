@@ -33,6 +33,7 @@ from ..blenderbot_small.configuration_blenderbot_small import (
     BLENDERBOT_SMALL_PRETRAINED_CONFIG_ARCHIVE_MAP,
     BlenderbotSmallConfig,
 )
+from ..c2bert.configuration_c2bert import C2BERT_PRETRAINED_CONFIG_ARCHIVE_MAP, C2BertConfig
 from ..camembert.configuration_camembert import CAMEMBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, CamembertConfig
 from ..canine.configuration_canine import CANINE_PRETRAINED_CONFIG_ARCHIVE_MAP, CanineConfig
 from ..clip.configuration_clip import CLIP_PRETRAINED_CONFIG_ARCHIVE_MAP, CLIPConfig
@@ -226,6 +227,7 @@ CONFIG_MAPPING = OrderedDict(
         ("tapas", TapasConfig),
         ("cutoffbert", CutoffBertConfig),
         ("mixupbert", MixupBertConfig),
+        ("c2bert", C2BertConfig),
     ]
 )
 
@@ -296,6 +298,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("hubert", "Hubert"),
         ("cutoffbert", "CutoffBERT"),
         ("mixupbert", "MixupBERT"),
+        ("c2bert", "C2BERT"),
     ]
 )
 

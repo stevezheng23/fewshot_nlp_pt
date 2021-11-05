@@ -74,6 +74,7 @@ from ..blenderbot_small.modeling_blenderbot_small import (
     BlenderbotSmallForConditionalGeneration,
     BlenderbotSmallModel,
 )
+from ..c2bert.modeling_c2bert import C2BertForSequenceClassification, C2BertModel
 from ..camembert.modeling_camembert import (
     CamembertForCausalLM,
     CamembertForMaskedLM,
@@ -332,6 +333,7 @@ from .configuration_auto import (
     BigBirdPegasusConfig,
     BlenderbotConfig,
     BlenderbotSmallConfig,
+    C2BertConfig,
     CamembertConfig,
     CanineConfig,
     CLIPConfig,
@@ -457,6 +459,7 @@ MODEL_MAPPING = OrderedDict(
         (MarianConfig, MarianModel),
         (CutoffBertConfig, CutoffBertModel),
         (MixupBertConfig, MixupBertModel),
+        (C2BertConfig, C2BertModel),
         (IBertConfig, IBertModel),
     ]
 )
@@ -702,6 +705,7 @@ MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING = OrderedDict(
         (TapasConfig, TapasForSequenceClassification),
         (CutoffBertConfig, CutoffBertForSequenceClassification),
         (MixupBertConfig, MixupBertForSequenceClassification),
+        (C2BertConfig, C2BertForSequenceClassification),
         (IBertConfig, IBertForSequenceClassification),
     ]
 )

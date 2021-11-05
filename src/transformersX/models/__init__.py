@@ -30,6 +30,7 @@ from . import (
     bigbird_pegasus,
     blenderbot,
     blenderbot_small,
+    c2bert,
     camembert,
     canine,
     clip,
