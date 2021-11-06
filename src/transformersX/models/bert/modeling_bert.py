@@ -1979,7 +1979,7 @@ class BertForDualPassageEncoder(BertPreTrainedModel):
         cl_labels = torch.argmax(torch.eye(labels.size(0)).to(labels.device), dim=-1)
         
         loss_fct = CrossEntropyLoss()
-        cl_loss = loss_fct(cl_logits, cl_labels)
+        cl_loss = loss_fct(cl_logits.view(-1, labels.size(0)), cl_labels.view(-1))
 
         if self.cls_loss_wgt is not None and self.cls_loss_wgt > 0.0:
             src_logits = self.classifier(self.dropout(src_outputs[1]))
