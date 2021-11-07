@@ -1974,9 +1974,10 @@ class BertForDualPassageEncoder(BertPreTrainedModel):
         src_pooled_output = self.dropout(self.pooler(src_outputs[0]))
         trg_pooled_output = self.dropout(self.pooler(trg_outputs[0]))
 
-        mask = (labels.unsqueeze(-1).expand(-1, labels.size(0)) == labels.unsqueeze(0).expand(labels.size(0), -1)) & (1 - torch.eye(labels.size(0))).to(labels.device).bool()
+        b = labels.size(0)
+        mask = (labels.unsqueeze(-1).expand(-1, b) == labels.unsqueeze(0).expand(b, -1)) & (1 - torch.eye(b)).to(labels.device).bool()
         cl_logits = torch.einsum('ik,jk->ij', src_pooled_output, trg_pooled_output).masked_fill(mask, float('-inf'))
-        cl_labels = torch.argmax(torch.eye(labels.size(0)).to(labels.device), dim=-1)
+        cl_labels = torch.arange(b).to(labels.device)
         
         loss_fct = CrossEntropyLoss()
         cl_loss = loss_fct(cl_logits.view(-1, labels.size(0)), cl_labels.view(-1))
