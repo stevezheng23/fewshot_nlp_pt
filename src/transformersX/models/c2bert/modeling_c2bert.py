@@ -552,7 +552,7 @@ class C2BertForSequenceClassification(C2BertPreTrainedModel):
 
         mask = (labels.unsqueeze(-1).expand(-1, b) == labels.unsqueeze(0).expand(b, -1)) & (1 - torch.eye(b)).to(labels.device).bool()
         cl_logits = torch.einsum('ik,jk->ij', pooled_output, masked_pooled_output).masked_fill(mask, float('-inf'))
-        cl_labels = torch.argmax(torch.eye(b).to(labels.device), dim=-1)
+        cl_labels = torch.arange(b).to(labels.device)
 
         loss_fct = CrossEntropyLoss()
         cls_loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
