@@ -127,6 +127,7 @@ class CutoffBertConfig(PretrainedConfig):
         classifier_dropout=None,
         cutoff_masking_prob=0.1,
         cutoff_temperature=1.0,
+        cutoff_mask_loss_wgt=1.0,
         cutoff_js_loss_wgt=1.0,
         **kwargs
     ):
@@ -153,4 +154,5 @@ class CutoffBertConfig(PretrainedConfig):
         self.mask_token_id = mask_token_id
         self.cutoff_masking_prob = cutoff_masking_prob
         self.cutoff_temperature = cutoff_temperature
+        self.cutoff_mask_loss_wgt = cutoff_mask_loss_wgt
         self.cutoff_js_loss_wgt = cutoff_js_loss_wgt

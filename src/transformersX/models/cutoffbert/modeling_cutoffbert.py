@@ -448,6 +448,7 @@ class CutoffBertForSequenceClassification(CutoffBertPreTrainedModel):
         self.mask_token_id = config.mask_token_id
         self.masking_prob = config.cutoff_masking_prob
         self.temperature = config.cutoff_temperature
+        self.mask_loss_wgt = config.cutoff_mask_loss_wgt
         self.js_loss_wgt = config.cutoff_js_loss_wgt
         self.config = config
 
@@ -544,15 +545,16 @@ class CutoffBertForSequenceClassification(CutoffBertPreTrainedModel):
         flatten_pooled_output = self.dropout(flatten_outputs[1])
         flatten_logits = self.classifier(flatten_pooled_output)
 
-        logits = flatten_logits.reshape(b, 2, self.config.num_labels)
-        labels = labels.unsqueeze(1).expand(-1, 2).contiguous()
+        logits, masked_logits = flatten_logits.reshape(b, 2, self.config.num_labels).chunk(2, dim=1)
+        logits, masked_logits = logits.squeeze(dim=1).contiguous(), masked_logits.squeeze(dim=1).contiguous()
 
         loss_fct = CrossEntropyLoss()
         loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
+        loss += loss_fct(masked_logits.view(-1, self.num_labels), labels.view(-1)) * self.mask_loss_wgt
+
         if self.js_loss_wgt > 0:
             kl_loss_fct = KLDivLoss(reduction="batchmean")
-            src_logits, trg_logits = logits.chunk(2, dim=1)
-            src_logits, trg_logits = src_logits.squeeze(dim=1).contiguous(), trg_logits.squeeze(dim=1).contiguous()
+            src_logits, trg_logits = logits, masked_logits
             mean_logits = (src_logits + trg_logits) * 0.5
             src_loss = kl_loss_fct(
                 F.log_softmax(src_logits / self.temperature, dim=-1),
@@ -564,9 +566,6 @@ class CutoffBertForSequenceClassification(CutoffBertPreTrainedModel):
             ) * (self.temperature ** 2)
             js_loss = (src_loss + trg_loss) * 0.5
             loss += js_loss * self.js_loss_wgt
-        
-        logits, _ = logits.chunk(2, dim=1)
-        logits = logits.squeeze(1).contiguous()
 
         if not return_dict:
             return (loss, logits)
