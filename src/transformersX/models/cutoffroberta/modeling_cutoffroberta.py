@@ -19,9 +19,10 @@ import math
 
 import torch
 import torch.utils.checkpoint
+import torch.nn.functional as F
 from packaging import version
 from torch import nn
-from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
+from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss, KLDivLoss
 
 from ...activations import ACT2FN, gelu
 from ...file_utils import (
@@ -51,6 +52,7 @@ from .configuration_cutoffroberta import CutoffRobertaConfig
 from ..roberta.modeling_roberta import RobertaEmbeddings as CutoffRobertaEmbeddings
 from ..roberta.modeling_roberta import RobertaEncoder as CutoffRobertaEncoder
 from ..roberta.modeling_roberta import RobertaPooler as CutoffRobertaPooler
+from ..roberta.modeling_roberta import RobertaClassificationHead as CutoffRobertaClassificationHead
 
 
 logger = logging.get_logger(__name__)
@@ -59,7 +61,7 @@ _CHECKPOINT_FOR_DOC = "roberta-base"
 _CONFIG_FOR_DOC = "CutoffRobertaConfig"
 _TOKENIZER_FOR_DOC = "CutoffRobertaTokenizer"
 
-ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST = [
+CUTOFFROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST = [
     "roberta-base",
     "roberta-large",
     # See all RoBERTa models at https://huggingface.co/models?filter=roberta
@@ -358,7 +360,7 @@ class CutoffRobertaModel(CutoffRobertaPreTrainedModel):
 @add_start_docstrings(
     """
     CutoffRoBERTa Model transformer with a sequence classification/regression head on top (a linear layer on top of the
-    pooled output) e.g. for GLUE tasks.
+    pooled output) + Cut-off data augmentation support.
     """,
     CUTOFFROBERTA_START_DOCSTRING,
 )
@@ -368,12 +370,27 @@ class CutoffRobertaForSequenceClassification(CutoffRobertaPreTrainedModel):
     def __init__(self, config):
         super().__init__(config)
         self.num_labels = config.num_labels
+        self.cls_token_id = config.cls_token_id
+        self.sep_token_id = config.sep_token_id
+        self.mask_token_id = config.mask_token_id
+        self.masking_prob = config.cutoff_masking_prob
+        self.temperature = config.cutoff_temperature
+        self.mask_loss_wgt = config.cutoff_mask_loss_wgt
+        self.js_loss_wgt = config.cutoff_js_loss_wgt
         self.config = config
 
         self.roberta = CutoffRobertaModel(config, add_pooling_layer=False)
         self.classifier = CutoffRobertaClassificationHead(config)
 
         self.init_weights()
+    
+    def _apply_cutoff(self, inputs):
+        masked_inputs = inputs.clone()
+        valid_masking_indices = (inputs != self.cls_token_id) & (inputs != self.sep_token_id)
+        random_masking_indices = torch.bernoulli(torch.full(inputs.shape, self.masking_prob, device=inputs.device)).bool()
+        masking_indices = random_masking_indices & valid_masking_indices
+        masked_inputs[masking_indices] = self.mask_token_id
+        return masked_inputs
 
     @add_start_docstrings_to_model_forward(CUTOFFROBERTA_INPUTS_DOCSTRING.format("batch_size, sequence_length"))
     @add_code_sample_docstrings(
@@ -403,72 +420,81 @@ class CutoffRobertaForSequenceClassification(CutoffRobertaPreTrainedModel):
         """
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
-        outputs = self.roberta(
-            input_ids,
-            attention_mask=attention_mask,
-            token_type_ids=token_type_ids,
-            position_ids=position_ids,
+        if labels is None:           
+            outputs = self.roberta(
+                input_ids,
+                attention_mask=attention_mask,
+                token_type_ids=token_type_ids,
+                position_ids=position_ids,
+                head_mask=head_mask,
+                inputs_embeds=inputs_embeds,
+                output_attentions=output_attentions,
+                output_hidden_states=output_hidden_states,
+                return_dict=return_dict,
+            )
+            
+            logits = self.classifier(outputs[0])
+
+            if not return_dict:
+                return (logits,) + outputs[2:]
+
+            return SequenceClassifierOutput(
+                logits=logits,
+                hidden_states=outputs.hidden_states,
+                attentions=outputs.attentions,
+            )
+
+        b, l = input_ids.size()
+        masked_input_ids = self._apply_cutoff(input_ids.clone())
+        flatten_input_ids = torch.stack((input_ids, masked_input_ids), dim=1).reshape(-1, l)
+        flatten_attention_mask = attention_mask.unsqueeze(1).expand(-1, 2, -1).reshape(-1, l) if attention_mask is not None else None
+        flatten_token_type_ids = token_type_ids.unsqueeze(1).expand(-1, 2, -1).reshape(-1, l) if token_type_ids is not None else None
+        flatten_position_ids = position_ids.unsqueeze(1).expand(-1, 2, -1).reshape(-1, l) if position_ids is not None else None
+        flatten_inputs_embeds = inputs_embeds.unsqueeze(1).expand(-1, 2, -1, -1).reshape(-1, l, self.config.hidden_size) if inputs_embeds is not None else None
+
+        flatten_outputs = self.bert(
+            flatten_input_ids,
+            attention_mask=flatten_attention_mask,
+            token_type_ids=flatten_token_type_ids,
+            position_ids=flatten_position_ids,
             head_mask=head_mask,
-            inputs_embeds=inputs_embeds,
+            inputs_embeds=flatten_inputs_embeds,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
         )
-        sequence_output = outputs[0]
-        logits = self.classifier(sequence_output)
 
-        loss = None
-        if labels is not None:
-            if self.config.problem_type is None:
-                if self.num_labels == 1:
-                    self.config.problem_type = "regression"
-                elif self.num_labels > 1 and (labels.dtype == torch.long or labels.dtype == torch.int):
-                    self.config.problem_type = "single_label_classification"
-                else:
-                    self.config.problem_type = "multi_label_classification"
+        flatten_logits = self.classifier(flatten_outputs[0])
 
-            if self.config.problem_type == "regression":
-                loss_fct = MSELoss()
-                if self.num_labels == 1:
-                    loss = loss_fct(logits.squeeze(), labels.squeeze())
-                else:
-                    loss = loss_fct(logits, labels)
-            elif self.config.problem_type == "single_label_classification":
-                loss_fct = CrossEntropyLoss()
-                loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
-            elif self.config.problem_type == "multi_label_classification":
-                loss_fct = BCEWithLogitsLoss()
-                loss = loss_fct(logits, labels)
+        logits, masked_logits = flatten_logits.reshape(b, 2, self.config.num_labels).chunk(2, dim=1)
+        logits, masked_logits = logits.squeeze(dim=1).contiguous(), masked_logits.squeeze(dim=1).contiguous()
+
+        loss_fct = CrossEntropyLoss()
+        loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
+
+        if self.mask_loss_wgt is not None and self.mask_loss_wgt > 0.0:
+            mask_loss = loss_fct(masked_logits.view(-1, self.num_labels), labels.view(-1))
+            loss += mask_loss * self.mask_loss_wgt
+
+        if self.js_loss_wgt is not None and self.js_loss_wgt > 0.0:
+            kl_loss_fct = KLDivLoss(reduction="batchmean")
+            src_logits, trg_logits = logits, masked_logits
+            mean_logits = (src_logits + trg_logits) * 0.5
+            src_loss = kl_loss_fct(
+                F.log_softmax(src_logits / self.temperature, dim=-1),
+                F.softmax(mean_logits / self.temperature, dim=-1)
+            ) * (self.temperature ** 2)
+            trg_loss = kl_loss_fct(
+                F.log_softmax(trg_logits / self.temperature, dim=-1),
+                F.softmax(mean_logits / self.temperature, dim=-1)
+            ) * (self.temperature ** 2)
+            js_loss = (src_loss + trg_loss) * 0.5
+            loss += js_loss * self.js_loss_wgt
 
         if not return_dict:
-            output = (logits,) + outputs[2:]
-            return ((loss,) + output) if loss is not None else output
+            return (loss, logits)
 
         return SequenceClassifierOutput(
             loss=loss,
             logits=logits,
-            hidden_states=outputs.hidden_states,
-            attentions=outputs.attentions,
         )
-
-
-class CutoffRobertaClassificationHead(nn.Module):
-    """Head for sentence-level classification tasks."""
-
-    def __init__(self, config):
-        super().__init__()
-        self.dense = nn.Linear(config.hidden_size, config.hidden_size)
-        classifier_dropout = (
-            config.classifier_dropout if config.classifier_dropout is not None else config.hidden_dropout_prob
-        )
-        self.dropout = nn.Dropout(classifier_dropout)
-        self.out_proj = nn.Linear(config.hidden_size, config.num_labels)
-
-    def forward(self, features, **kwargs):
-        x = features[:, 0, :]  # take <s> token (equiv. to [CLS])
-        x = self.dropout(x)
-        x = self.dense(x)
-        x = torch.tanh(x)
-        x = self.dropout(x)
-        x = self.out_proj(x)
-        return x
