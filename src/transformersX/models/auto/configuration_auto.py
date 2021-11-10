@@ -41,6 +41,7 @@ from ..clip.configuration_clip import CLIP_PRETRAINED_CONFIG_ARCHIVE_MAP, CLIPCo
 from ..convbert.configuration_convbert import CONVBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, ConvBertConfig
 from ..ctrl.configuration_ctrl import CTRL_PRETRAINED_CONFIG_ARCHIVE_MAP, CTRLConfig
 from ..cutoffbert.configuration_cutoffbert import CUTOFFBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, CutoffBertConfig
+from ..cutoffroberta.configuration_cutoffroberta import CUTOFFROBERTA_PRETRAINED_CONFIG_ARCHIVE_MAP, CutoffRobertaConfig
 from ..deberta.configuration_deberta import DEBERTA_PRETRAINED_CONFIG_ARCHIVE_MAP, DebertaConfig
 from ..deberta_v2.configuration_deberta_v2 import DEBERTA_V2_PRETRAINED_CONFIG_ARCHIVE_MAP, DebertaV2Config
 from ..deit.configuration_deit import DEIT_PRETRAINED_CONFIG_ARCHIVE_MAP, DeiTConfig
@@ -158,6 +159,7 @@ ALL_PRETRAINED_CONFIG_ARCHIVE_MAP = dict(
         HUBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
         C2BERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
         CUTOFFBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        CUTOFFROBERTA_PRETRAINED_CONFIG_ARCHIVE_MAP,
         MIXUPBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
         ADAPTERBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
     ]
@@ -231,6 +233,7 @@ CONFIG_MAPPING = OrderedDict(
         ("rag", RagConfig),
         ("tapas", TapasConfig),
         ("cutoffbert", CutoffBertConfig),
+        ("cutoffroberta", CutoffRobertaConfig),
         ("mixupbert", MixupBertConfig),
         ("c2bert", C2BertConfig),
         ("adapterbert", AdapterBertConfig),
@@ -303,6 +306,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("tapas", "TAPAS"),
         ("hubert", "Hubert"),
         ("cutoffbert", "CutoffBERT"),
+        ("cutoffroberta", "CutoffRoBERTa"),
         ("mixupbert", "MixupBERT"),
         ("c2bert", "C2BERT"),
         ("adapterbert", "AdapterBERT"),

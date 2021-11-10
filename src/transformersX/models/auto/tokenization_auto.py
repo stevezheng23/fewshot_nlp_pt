@@ -43,6 +43,7 @@ from ..canine.tokenization_canine import CanineTokenizer
 from ..convbert.tokenization_convbert import ConvBertTokenizer
 from ..ctrl.tokenization_ctrl import CTRLTokenizer
 from ..cutoffbert.tokenization_cutoffbert import CutoffBertTokenizer
+from ..cutoffroberta.tokenization_cutoffroberta import CutoffRobertaTokenizer
 from ..deberta.tokenization_deberta import DebertaTokenizer
 from ..distilbert.tokenization_distilbert import DistilBertTokenizer
 from ..dpr.tokenization_dpr import DPRQuestionEncoderTokenizer
@@ -88,6 +89,7 @@ from .configuration_auto import (
     ConvBertConfig,
     CTRLConfig,
     CutoffBertConfig,
+    CutoffRobertaConfig,
     C2BertConfig,
     DebertaConfig,
     DebertaV2Config,
@@ -311,6 +313,7 @@ TOKENIZER_MAPPING = OrderedDict(
         (CanineConfig, (CanineTokenizer, None)),
         (C2BertConfig, (C2BertTokenizer, None)),
         (CutoffBertConfig, (CutoffBertTokenizer, None)),
+        (CutoffRobertaConfig, (CutoffRobertaTokenizer, None)),
         (MixupBertConfig, (MixupBertTokenizer, None)),
         (AdapterBertConfig, (AdapterBertTokenizer, None)),
     ]
