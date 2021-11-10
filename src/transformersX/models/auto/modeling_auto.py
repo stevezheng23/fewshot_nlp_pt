@@ -103,6 +103,7 @@ from ..convbert.modeling_convbert import (
 )
 from ..ctrl.modeling_ctrl import CTRLForSequenceClassification, CTRLLMHeadModel, CTRLModel
 from ..cutoffbert.modeling_cutoffbert import CutoffBertForSequenceClassification, CutoffBertModel
+from ..cutoffroberta.modeling_cutoffroberta import CutoffRobertaForSequenceClassification, CutoffRobertaModel
 from ..deberta.modeling_deberta import (
     DebertaForMaskedLM,
     DebertaForQuestionAnswering,
@@ -342,6 +343,7 @@ from .configuration_auto import (
     ConvBertConfig,
     CTRLConfig,
     CutoffBertConfig,
+    CutoffRobertaConfig,
     DebertaConfig,
     DebertaV2Config,
     DeiTConfig,
@@ -460,6 +462,7 @@ MODEL_MAPPING = OrderedDict(
         (TapasConfig, TapasModel),
         (MarianConfig, MarianModel),
         (CutoffBertConfig, CutoffBertModel),
+        (CutoffRobertaConfig, CutoffRobertaModel),
         (MixupBertConfig, MixupBertModel),
         (C2BertConfig, C2BertModel),
         (AdapterBertConfig, AdapterBertModel),
@@ -707,6 +710,7 @@ MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING = OrderedDict(
         (MPNetConfig, MPNetForSequenceClassification),
         (TapasConfig, TapasForSequenceClassification),
         (CutoffBertConfig, CutoffBertForSequenceClassification),
+        (CutoffRobertaConfig, CutoffRobertaForSequenceClassification),
         (MixupBertConfig, MixupBertForSequenceClassification),
         (C2BertConfig, C2BertForSequenceClassification),
         (AdapterBertConfig, AdapterBertForSequenceClassification),

@@ -39,6 +39,7 @@ from . import (
     cpm,
     ctrl,
     cutoffbert,
+    cutoffroberta,
     deberta,
     deit,
     detr,
