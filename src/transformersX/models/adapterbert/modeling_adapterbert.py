@@ -460,6 +460,12 @@ class AdapterBertPreTrainedModel(PreTrainedModel):
         elif isinstance(module, nn.LayerNorm):
             module.bias.data.zero_()
             module.weight.data.fill_(1.0)
+    
+    def freeze_weights(self):
+        """Freeze non-adapter weights"""
+        for n, p in self.named_parameters():
+            if "adapter.projection" not in n:
+                p.requires_grad = False
 
 
 ADAPTERBERT_START_DOCSTRING = r"""
@@ -558,6 +564,7 @@ class AdapterBertModel(AdapterBertPreTrainedModel):
         self.pooler = AdapterBertPooler(config) if add_pooling_layer else None
 
         self.init_weights()
+        self.freeze_weights()
 
     def get_input_embeddings(self):
         return self.embeddings.word_embeddings
