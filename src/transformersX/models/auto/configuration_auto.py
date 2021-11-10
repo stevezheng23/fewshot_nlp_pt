@@ -18,6 +18,7 @@ import re
 from collections import OrderedDict
 
 from ...configuration_utils import PretrainedConfig
+from ..adapterbert.configuration_adapterbert import ADAPTERBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, AdapterBertConfig
 from ..albert.configuration_albert import ALBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, AlbertConfig
 from ..bart.configuration_bart import BART_PRETRAINED_CONFIG_ARCHIVE_MAP, BartConfig
 from ..beit.configuration_beit import BEIT_PRETRAINED_CONFIG_ARCHIVE_MAP, BeitConfig
@@ -158,6 +159,7 @@ ALL_PRETRAINED_CONFIG_ARCHIVE_MAP = dict(
         C2BERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
         CUTOFFBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
         MIXUPBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        ADAPTERBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
     ]
     for key, value, in pretrained_map.items()
 )
@@ -231,6 +233,7 @@ CONFIG_MAPPING = OrderedDict(
         ("cutoffbert", CutoffBertConfig),
         ("mixupbert", MixupBertConfig),
         ("c2bert", C2BertConfig),
+        ("adapterbert", AdapterBertConfig),
     ]
 )
 
@@ -302,6 +305,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("cutoffbert", "CutoffBERT"),
         ("mixupbert", "MixupBERT"),
         ("c2bert", "C2BERT"),
+        ("adapterbert", "AdapterBERT"),
     ]
 )
 

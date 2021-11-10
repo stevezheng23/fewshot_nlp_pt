@@ -136,6 +136,7 @@ _import_structure = {
     ],
     # Models
     "models": [],
+    "models.adapterbert": ["ADAPTERBERT_PRETRAINED_CONFIG_ARCHIVE_MAP", "AdapterBertConfig","AdapterBertTokenizer"],
     "models.albert": ["ALBERT_PRETRAINED_CONFIG_ARCHIVE_MAP", "AlbertConfig"],
     "models.auto": [
         "ALL_PRETRAINED_CONFIG_ARCHIVE_MAP",
@@ -503,6 +504,15 @@ if is_torch_available():
     _import_structure["modeling_utils"] = ["Conv1D", "PreTrainedModel", "apply_chunking_to_forward", "prune_layer"]
 
     # PyTorch models structure
+    _import_structure["models.adapterbert"].extend(
+        [
+            "ADAPTERBERT_PRETRAINED_MODEL_ARCHIVE_LIST",
+            "AdapterBertForSequenceClassification",
+            "AdapterBertModel",
+            "AdapterBertPreTrainedModel",
+            "load_tf_weights_in_adapterbert",
+        ]
+    )
     _import_structure["models.albert"].extend(
         [
             "ALBERT_PRETRAINED_MODEL_ARCHIVE_LIST",
@@ -1849,6 +1859,7 @@ if TYPE_CHECKING:
         load_tf2_model_in_pytorch_model,
         load_tf2_weights_in_pytorch_model,
     )
+    from .models.adapterbert import ADAPTERBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, AdapterBertConfig, AdapterBertTokenizer
     from .models.albert import ALBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, AlbertConfig
     from .models.auto import (
         ALL_PRETRAINED_CONFIG_ARCHIVE_MAP,
@@ -2172,6 +2183,13 @@ if TYPE_CHECKING:
         )
         from .generation_utils import top_k_top_p_filtering
         from .modeling_utils import Conv1D, PreTrainedModel, apply_chunking_to_forward, prune_layer
+        from .models.adapterbert import (
+            ADAPTERBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
+            AdapterBertForSequenceClassification,
+            AdapterBertModel,
+            AdapterBertPreTrainedModel,
+            load_tf_weights_in_adapterbert,
+        )
         from .models.albert import (
             ALBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
             AlbertForMaskedLM,

@@ -30,6 +30,7 @@ from ...file_utils import (
 )
 from ...tokenization_utils_base import TOKENIZER_CONFIG_FILE
 from ...utils import logging
+from ..adapterbert.tokenization_adapterbert import AdapterBertTokenizer
 from ..bart.tokenization_bart import BartTokenizer
 from ..bert.tokenization_bert import BertTokenizer
 from ..bert_japanese.tokenization_bert_japanese import BertJapaneseTokenizer
@@ -72,6 +73,7 @@ from ..transfo_xl.tokenization_transfo_xl import TransfoXLTokenizer
 from ..wav2vec2.tokenization_wav2vec2 import Wav2Vec2CTCTokenizer
 from ..xlm.tokenization_xlm import XLMTokenizer
 from .configuration_auto import (
+    AdapterBertConfig,
     AlbertConfig,
     AutoConfig,
     BartConfig,
@@ -310,6 +312,7 @@ TOKENIZER_MAPPING = OrderedDict(
         (C2BertConfig, (C2BertTokenizer, None)),
         (CutoffBertConfig, (CutoffBertTokenizer, None)),
         (MixupBertConfig, (MixupBertTokenizer, None)),
+        (AdapterBertConfig, (AdapterBertTokenizer, None)),
     ]
 )
 

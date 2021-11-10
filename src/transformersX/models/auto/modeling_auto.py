@@ -21,6 +21,7 @@ from collections import OrderedDict
 from ...utils import logging
 
 # Add modeling imports here
+from ..adapterbert.modeling_adapterbert import AdapterBertForSequenceClassification, AdapterBertModel
 from ..albert.modeling_albert import (
     AlbertForMaskedLM,
     AlbertForMultipleChoice,
@@ -324,6 +325,7 @@ from ..xlnet.modeling_xlnet import (
 )
 from .auto_factory import _BaseAutoModelClass, auto_class_update
 from .configuration_auto import (
+    AdapterBertConfig,
     AlbertConfig,
     BartConfig,
     BeitConfig,
@@ -460,6 +462,7 @@ MODEL_MAPPING = OrderedDict(
         (CutoffBertConfig, CutoffBertModel),
         (MixupBertConfig, MixupBertModel),
         (C2BertConfig, C2BertModel),
+        (AdapterBertConfig, AdapterBertModel),
         (IBertConfig, IBertModel),
     ]
 )
@@ -706,6 +709,7 @@ MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING = OrderedDict(
         (CutoffBertConfig, CutoffBertForSequenceClassification),
         (MixupBertConfig, MixupBertForSequenceClassification),
         (C2BertConfig, C2BertForSequenceClassification),
+        (AdapterBertConfig, AdapterBertForSequenceClassification),
         (IBertConfig, IBertForSequenceClassification),
     ]
 )
