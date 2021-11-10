@@ -60,7 +60,8 @@ from ...modeling_utils import (
 from ...utils import logging
 from .configuration_adapterbert import AdapterBertConfig
 from ..bert.modeling_bert import BertEmbeddings as AdapterBertEmbeddings
-from ..bert.modeling_bert import BertEncoder as AdapterBertEncoder
+from ..bert.modeling_bert import BertSelfAttention as AdapterBertSelfAttention
+from ..bert.modeling_bert import BertIntermediate as AdapterBertIntermediate
 from ..bert.modeling_bert import BertPooler as AdapterBertPooler
 
 
@@ -153,6 +154,284 @@ def load_tf_weights_in_adapterbert(model, config, tf_checkpoint_path):
         logger.info(f"Initialize PyTorch weight {name}")
         pointer.data = torch.from_numpy(array)
     return model
+
+
+class AdapterBertProjection(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.projection_down = nn.Linear(config.hidden_size, config.adapter_projection_size)
+        if isinstance(config.hidden_act, str):
+            self.projection_act_fn = ACT2FN[config.hidden_act]
+        else:
+            self.projection_act_fn = config.hidden_act
+        self.projection_up = nn.Linear(config.adapter_projection_size, config.hidden_size)
+    
+    def forward(self, input_tensor):
+        hidden_states = self.projection_down(input_tensor)
+        hidden_states = self.projection_act_fn(hidden_states)
+        hidden_states = self.projection_up(hidden_states)
+        return hidden_states + input_tensor
+
+
+class AdapterBertSelfOutput(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.dense = nn.Linear(config.hidden_size, config.hidden_size)
+        self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+        self.dropout = nn.Dropout(config.hidden_dropout_prob)
+        self.adapter = AdapterBertProjection(config)
+
+    def forward(self, hidden_states, input_tensor):
+        hidden_states = self.dense(hidden_states)
+        hidden_states = self.dropout(hidden_states)
+        hidden_states = self.adapter(hidden_states)
+        hidden_states = self.LayerNorm(hidden_states + input_tensor)
+        return hidden_states
+
+
+class AdapterBertAttention(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.self = AdapterBertSelfAttention(config)
+        self.output = AdapterBertSelfOutput(config)
+        self.pruned_heads = set()
+
+    def prune_heads(self, heads):
+        if len(heads) == 0:
+            return
+        heads, index = find_pruneable_heads_and_indices(
+            heads, self.self.num_attention_heads, self.self.attention_head_size, self.pruned_heads
+        )
+
+        # Prune linear layers
+        self.self.query = prune_linear_layer(self.self.query, index)
+        self.self.key = prune_linear_layer(self.self.key, index)
+        self.self.value = prune_linear_layer(self.self.value, index)
+        self.output.dense = prune_linear_layer(self.output.dense, index, dim=1)
+
+        # Update hyper params and store pruned heads
+        self.self.num_attention_heads = self.self.num_attention_heads - len(heads)
+        self.self.all_head_size = self.self.attention_head_size * self.self.num_attention_heads
+        self.pruned_heads = self.pruned_heads.union(heads)
+
+    def forward(
+        self,
+        hidden_states,
+        attention_mask=None,
+        head_mask=None,
+        encoder_hidden_states=None,
+        encoder_attention_mask=None,
+        past_key_value=None,
+        output_attentions=False,
+    ):
+        self_outputs = self.self(
+            hidden_states,
+            attention_mask,
+            head_mask,
+            encoder_hidden_states,
+            encoder_attention_mask,
+            past_key_value,
+            output_attentions,
+        )
+        attention_output = self.output(self_outputs[0], hidden_states)
+        outputs = (attention_output,) + self_outputs[1:]  # add attentions if we output them
+        return outputs
+
+
+class AdapterBertOutput(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.dense = nn.Linear(config.intermediate_size, config.hidden_size)
+        self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+        self.dropout = nn.Dropout(config.hidden_dropout_prob)
+        self.adapter = AdapterBertProjection(config)
+
+    def forward(self, hidden_states, input_tensor):
+        hidden_states = self.dense(hidden_states)
+        hidden_states = self.dropout(hidden_states)
+        hidden_states = self.adapter(hidden_states)
+        hidden_states = self.LayerNorm(hidden_states + input_tensor)
+        return hidden_states
+
+
+class AdapterBertLayer(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.chunk_size_feed_forward = config.chunk_size_feed_forward
+        self.seq_len_dim = 1
+        self.attention = AdapterBertAttention(config)
+        self.is_decoder = config.is_decoder
+        self.add_cross_attention = config.add_cross_attention
+        if self.add_cross_attention:
+            assert self.is_decoder, f"{self} should be used as a decoder model if cross attention is added"
+            self.crossattention = AdapterBertAttention(config)
+        self.intermediate = AdapterBertIntermediate(config)
+        self.output = AdapterBertOutput(config)
+
+    def forward(
+        self,
+        hidden_states,
+        attention_mask=None,
+        head_mask=None,
+        encoder_hidden_states=None,
+        encoder_attention_mask=None,
+        past_key_value=None,
+        output_attentions=False,
+    ):
+        # decoder uni-directional self-attention cached key/values tuple is at positions 1,2
+        self_attn_past_key_value = past_key_value[:2] if past_key_value is not None else None
+        self_attention_outputs = self.attention(
+            hidden_states,
+            attention_mask,
+            head_mask,
+            output_attentions=output_attentions,
+            past_key_value=self_attn_past_key_value,
+        )
+        attention_output = self_attention_outputs[0]
+
+        # if decoder, the last output is tuple of self-attn cache
+        if self.is_decoder:
+            outputs = self_attention_outputs[1:-1]
+            present_key_value = self_attention_outputs[-1]
+        else:
+            outputs = self_attention_outputs[1:]  # add self attentions if we output attention weights
+
+        cross_attn_present_key_value = None
+        if self.is_decoder and encoder_hidden_states is not None:
+            assert hasattr(
+                self, "crossattention"
+            ), f"If `encoder_hidden_states` are passed, {self} has to be instantiated with cross-attention layers by setting `config.add_cross_attention=True`"
+
+            # cross_attn cached key/values tuple is at positions 3,4 of past_key_value tuple
+            cross_attn_past_key_value = past_key_value[-2:] if past_key_value is not None else None
+            cross_attention_outputs = self.crossattention(
+                attention_output,
+                attention_mask,
+                head_mask,
+                encoder_hidden_states,
+                encoder_attention_mask,
+                cross_attn_past_key_value,
+                output_attentions,
+            )
+            attention_output = cross_attention_outputs[0]
+            outputs = outputs + cross_attention_outputs[1:-1]  # add cross attentions if we output attention weights
+
+            # add cross-attn cache to positions 3,4 of present_key_value tuple
+            cross_attn_present_key_value = cross_attention_outputs[-1]
+            present_key_value = present_key_value + cross_attn_present_key_value
+
+        layer_output = apply_chunking_to_forward(
+            self.feed_forward_chunk, self.chunk_size_feed_forward, self.seq_len_dim, attention_output
+        )
+        outputs = (layer_output,) + outputs
+
+        # if decoder, return the attn key/values as the last output
+        if self.is_decoder:
+            outputs = outputs + (present_key_value,)
+
+        return outputs
+
+    def feed_forward_chunk(self, attention_output):
+        intermediate_output = self.intermediate(attention_output)
+        layer_output = self.output(intermediate_output, attention_output)
+        return layer_output
+
+
+class AdapterBertEncoder(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.config = config
+        self.layer = nn.ModuleList([AdapterBertLayer(config) for _ in range(config.num_hidden_layers)])
+
+    def forward(
+        self,
+        hidden_states,
+        attention_mask=None,
+        head_mask=None,
+        encoder_hidden_states=None,
+        encoder_attention_mask=None,
+        past_key_values=None,
+        use_cache=None,
+        output_attentions=False,
+        output_hidden_states=False,
+        return_dict=True,
+    ):
+        all_hidden_states = () if output_hidden_states else None
+        all_self_attentions = () if output_attentions else None
+        all_cross_attentions = () if output_attentions and self.config.add_cross_attention else None
+
+        next_decoder_cache = () if use_cache else None
+        for i, layer_module in enumerate(self.layer):
+            if output_hidden_states:
+                all_hidden_states = all_hidden_states + (hidden_states,)
+
+            layer_head_mask = head_mask[i] if head_mask is not None else None
+            past_key_value = past_key_values[i] if past_key_values is not None else None
+
+            if getattr(self.config, "gradient_checkpointing", False) and self.training:
+
+                if use_cache:
+                    logger.warning(
+                        "`use_cache=True` is incompatible with `config.gradient_checkpointing=True`. Setting "
+                        "`use_cache=False`..."
+                    )
+                    use_cache = False
+
+                def create_custom_forward(module):
+                    def custom_forward(*inputs):
+                        return module(*inputs, past_key_value, output_attentions)
+
+                    return custom_forward
+
+                layer_outputs = torch.utils.checkpoint.checkpoint(
+                    create_custom_forward(layer_module),
+                    hidden_states,
+                    attention_mask,
+                    layer_head_mask,
+                    encoder_hidden_states,
+                    encoder_attention_mask,
+                )
+            else:
+                layer_outputs = layer_module(
+                    hidden_states,
+                    attention_mask,
+                    layer_head_mask,
+                    encoder_hidden_states,
+                    encoder_attention_mask,
+                    past_key_value,
+                    output_attentions,
+                )
+
+            hidden_states = layer_outputs[0]
+            if use_cache:
+                next_decoder_cache += (layer_outputs[-1],)
+            if output_attentions:
+                all_self_attentions = all_self_attentions + (layer_outputs[1],)
+                if self.config.add_cross_attention:
+                    all_cross_attentions = all_cross_attentions + (layer_outputs[2],)
+
+        if output_hidden_states:
+            all_hidden_states = all_hidden_states + (hidden_states,)
+
+        if not return_dict:
+            return tuple(
+                v
+                for v in [
+                    hidden_states,
+                    next_decoder_cache,
+                    all_hidden_states,
+                    all_self_attentions,
+                    all_cross_attentions,
+                ]
+                if v is not None
+            )
+        return BaseModelOutputWithPastAndCrossAttentions(
+            last_hidden_state=hidden_states,
+            past_key_values=next_decoder_cache,
+            hidden_states=all_hidden_states,
+            attentions=all_self_attentions,
+            cross_attentions=all_cross_attentions,
+        )
 
 
 class AdapterBertPreTrainedModel(PreTrainedModel):
@@ -442,9 +721,6 @@ class AdapterBertForSequenceClassification(AdapterBertPreTrainedModel):
     def __init__(self, config):
         super().__init__(config)
         self.num_labels = config.num_labels
-        self.adapter_hidden_size = config.adapter_hidden_size
-        self.adapter_hidden_act = config.adapter_hidden_act
-        self.adapter_dropout_prob = config.adapter_dropout_prob
         self.config = config
 
         self.bert = AdapterBertModel(config)
@@ -455,14 +731,6 @@ class AdapterBertForSequenceClassification(AdapterBertPreTrainedModel):
         self.classifier = nn.Linear(config.hidden_size, config.num_labels)
 
         self.init_weights()
-    
-    def _apply_mask(self, inputs):
-        masked_inputs = inputs.clone()
-        valid_masking_indices = (inputs != self.cls_token_id) & (inputs != self.sep_token_id)
-        random_masking_indices = torch.bernoulli(torch.full(inputs.shape, self.masking_prob, device=inputs.device)).bool()
-        masking_indices = random_masking_indices & valid_masking_indices
-        masked_inputs[masking_indices] = self.mask_token_id
-        return masked_inputs
 
     @add_start_docstrings_to_model_forward(ADAPTERBERT_INPUTS_DOCSTRING.format("batch_size, sequence_length"))
     @add_code_sample_docstrings(
@@ -492,83 +760,52 @@ class AdapterBertForSequenceClassification(AdapterBertPreTrainedModel):
         """
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
-        if labels is None:           
-            outputs = self.bert(
-                input_ids,
-                attention_mask=attention_mask,
-                token_type_ids=token_type_ids,
-                position_ids=position_ids,
-                head_mask=head_mask,
-                inputs_embeds=inputs_embeds,
-                output_attentions=output_attentions,
-                output_hidden_states=output_hidden_states,
-                return_dict=return_dict,
-            )
-
-            pooled_output = self.dropout(outputs[1])
-            logits = self.classifier(pooled_output)
-
-            if not return_dict:
-                return (logits,) + outputs[2:]
-
-            return SequenceClassifierOutput(
-                logits=logits,
-                hidden_states=outputs.hidden_states,
-                attentions=outputs.attentions,
-            )
-
-        b, l = input_ids.size()
-        masked_input_ids = self._apply_mask(input_ids.clone())
-        flatten_input_ids = torch.stack((input_ids, masked_input_ids), dim=1).reshape(-1, l)
-        flatten_attention_mask = attention_mask.unsqueeze(1).expand(-1, 2, -1).reshape(-1, l) if attention_mask is not None else None
-        flatten_token_type_ids = token_type_ids.unsqueeze(1).expand(-1, 2, -1).reshape(-1, l) if token_type_ids is not None else None
-        flatten_position_ids = position_ids.unsqueeze(1).expand(-1, 2, -1).reshape(-1, l) if position_ids is not None else None
-        flatten_inputs_embeds = inputs_embeds.unsqueeze(1).expand(-1, 2, -1, -1).reshape(-1, l, self.config.hidden_size) if inputs_embeds is not None else None
-
-        flatten_outputs = self.bert(
-            flatten_input_ids,
-            attention_mask=flatten_attention_mask,
-            token_type_ids=flatten_token_type_ids,
-            position_ids=flatten_position_ids,
+        outputs = self.bert(
+            input_ids,
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
+            position_ids=position_ids,
             head_mask=head_mask,
-            inputs_embeds=flatten_inputs_embeds,
+            inputs_embeds=inputs_embeds,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
         )
 
-        flatten_pooled_output = self.dropout(flatten_outputs[1])
-        flatten_logits = self.classifier(flatten_pooled_output)
+        pooled_output = outputs[1]
 
-        logits, masked_logits = flatten_logits.reshape(b, 2, self.config.num_labels).chunk(2, dim=1)
-        logits, masked_logits = logits.squeeze(dim=1).contiguous(), masked_logits.squeeze(dim=1).contiguous()
+        pooled_output = self.dropout(pooled_output)
+        logits = self.classifier(pooled_output)
 
-        loss_fct = CrossEntropyLoss()
-        loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
+        loss = None
+        if labels is not None:
+            if self.config.problem_type is None:
+                if self.num_labels == 1:
+                    self.config.problem_type = "regression"
+                elif self.num_labels > 1 and (labels.dtype == torch.long or labels.dtype == torch.int):
+                    self.config.problem_type = "single_label_classification"
+                else:
+                    self.config.problem_type = "multi_label_classification"
 
-        if self.mask_loss_wgt is not None and self.mask_loss_wgt > 0.0:
-            mask_loss = loss_fct(masked_logits.view(-1, self.num_labels), labels.view(-1))
-            loss += mask_loss * self.mask_loss_wgt
-
-        if self.js_loss_wgt is not None and self.js_loss_wgt > 0.0:
-            kl_loss_fct = KLDivLoss(reduction="batchmean")
-            src_logits, trg_logits = logits, masked_logits
-            mean_logits = (src_logits + trg_logits) * 0.5
-            src_loss = kl_loss_fct(
-                F.log_softmax(src_logits / self.temperature, dim=-1),
-                F.softmax(mean_logits / self.temperature, dim=-1)
-            ) * (self.temperature ** 2)
-            trg_loss = kl_loss_fct(
-                F.log_softmax(trg_logits / self.temperature, dim=-1),
-                F.softmax(mean_logits / self.temperature, dim=-1)
-            ) * (self.temperature ** 2)
-            js_loss = (src_loss + trg_loss) * 0.5
-            loss += js_loss * self.js_loss_wgt
-
+            if self.config.problem_type == "regression":
+                loss_fct = MSELoss()
+                if self.num_labels == 1:
+                    loss = loss_fct(logits.squeeze(), labels.squeeze())
+                else:
+                    loss = loss_fct(logits, labels)
+            elif self.config.problem_type == "single_label_classification":
+                loss_fct = CrossEntropyLoss()
+                loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
+            elif self.config.problem_type == "multi_label_classification":
+                loss_fct = BCEWithLogitsLoss()
+                loss = loss_fct(logits, labels)
         if not return_dict:
-            return (loss, logits)
+            output = (logits,) + outputs[2:]
+            return ((loss,) + output) if loss is not None else output
 
         return SequenceClassifierOutput(
             loss=loss,
             logits=logits,
+            hidden_states=outputs.hidden_states,
+            attentions=outputs.attentions,
         )
