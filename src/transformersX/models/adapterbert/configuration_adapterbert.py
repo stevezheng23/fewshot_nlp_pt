@@ -122,9 +122,7 @@ class AdapterBertConfig(PretrainedConfig):
         position_embedding_type="absolute",
         use_cache=True,
         classifier_dropout=None,
-        adapter_hidden_size=32,
-        adapter_hidden_act="gelu",
-        adapter_dropout_prob=0.1,
+        adapter_projection_size=32,
         **kwargs
     ):
         super().__init__(pad_token_id=pad_token_id, **kwargs)
@@ -145,6 +143,4 @@ class AdapterBertConfig(PretrainedConfig):
         self.position_embedding_type = position_embedding_type
         self.use_cache = use_cache
         self.classifier_dropout = classifier_dropout
-        self.adapter_hidden_size = adapter_hidden_size
-        self.adapter_hidden_act = adapter_hidden_act
-        self.adapter_dropout_prob = adapter_dropout_prob
+        self.adapter_projection_size = adapter_projection_size
