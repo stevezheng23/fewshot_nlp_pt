@@ -452,7 +452,7 @@ class CutoffRobertaForSequenceClassification(CutoffRobertaPreTrainedModel):
         flatten_position_ids = position_ids.unsqueeze(1).expand(-1, 2, -1).reshape(-1, l) if position_ids is not None else None
         flatten_inputs_embeds = inputs_embeds.unsqueeze(1).expand(-1, 2, -1, -1).reshape(-1, l, self.config.hidden_size) if inputs_embeds is not None else None
 
-        flatten_outputs = self.bert(
+        flatten_outputs = self.roberta(
             flatten_input_ids,
             attention_mask=flatten_attention_mask,
             token_type_ids=flatten_token_type_ids,
