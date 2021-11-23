@@ -75,7 +75,6 @@ from ..blenderbot_small.modeling_blenderbot_small import (
     BlenderbotSmallForConditionalGeneration,
     BlenderbotSmallModel,
 )
-from ..c2bert.modeling_c2bert import C2BertForSequenceClassification, C2BertModel
 from ..camembert.modeling_camembert import (
     CamembertForCausalLM,
     CamembertForMaskedLM,
@@ -189,6 +188,7 @@ from ..longformer.modeling_longformer import (
     LongformerForTokenClassification,
     LongformerModel,
 )
+from ..lorabert.modeling_lorabert import LoraBertForSequenceClassification, LoraBertModel
 from ..luke.modeling_luke import LukeModel
 from ..lxmert.modeling_lxmert import LxmertForPreTraining, LxmertForQuestionAnswering, LxmertModel
 from ..m2m_100.modeling_m2m_100 import M2M100ForConditionalGeneration, M2M100Model
@@ -336,7 +336,6 @@ from .configuration_auto import (
     BigBirdPegasusConfig,
     BlenderbotConfig,
     BlenderbotSmallConfig,
-    C2BertConfig,
     CamembertConfig,
     CanineConfig,
     CLIPConfig,
@@ -362,6 +361,7 @@ from .configuration_auto import (
     LayoutLMConfig,
     LEDConfig,
     LongformerConfig,
+    LoraBertConfig,
     LukeConfig,
     LxmertConfig,
     M2M100Config,
@@ -464,8 +464,8 @@ MODEL_MAPPING = OrderedDict(
         (CutoffBertConfig, CutoffBertModel),
         (CutoffRobertaConfig, CutoffRobertaModel),
         (MixupBertConfig, MixupBertModel),
-        (C2BertConfig, C2BertModel),
         (AdapterBertConfig, AdapterBertModel),
+        (LoraBertConfig, LoraBertModel),
         (IBertConfig, IBertModel),
     ]
 )
@@ -712,8 +712,8 @@ MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING = OrderedDict(
         (CutoffBertConfig, CutoffBertForSequenceClassification),
         (CutoffRobertaConfig, CutoffRobertaForSequenceClassification),
         (MixupBertConfig, MixupBertForSequenceClassification),
-        (C2BertConfig, C2BertForSequenceClassification),
         (AdapterBertConfig, AdapterBertForSequenceClassification),
+        (LoraBertConfig, LoraBertForSequenceClassification),
         (IBertConfig, IBertForSequenceClassification),
     ]
 )

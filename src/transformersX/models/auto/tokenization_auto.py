@@ -38,7 +38,6 @@ from ..bertweet.tokenization_bertweet import BertweetTokenizer
 from ..blenderbot.tokenization_blenderbot import BlenderbotTokenizer
 from ..blenderbot_small.tokenization_blenderbot_small import BlenderbotSmallTokenizer
 from ..byt5.tokenization_byt5 import ByT5Tokenizer
-from ..c2bert.tokenization_c2bert import C2BertTokenizer
 from ..canine.tokenization_canine import CanineTokenizer
 from ..convbert.tokenization_convbert import ConvBertTokenizer
 from ..ctrl.tokenization_ctrl import CTRLTokenizer
@@ -56,6 +55,7 @@ from ..herbert.tokenization_herbert import HerbertTokenizer
 from ..layoutlm.tokenization_layoutlm import LayoutLMTokenizer
 from ..led.tokenization_led import LEDTokenizer
 from ..longformer.tokenization_longformer import LongformerTokenizer
+from ..lorabert.tokenization_lorabert import LoraBertTokenizer
 from ..luke.tokenization_luke import LukeTokenizer
 from ..lxmert.tokenization_lxmert import LxmertTokenizer
 from ..mobilebert.tokenization_mobilebert import MobileBertTokenizer
@@ -90,7 +90,6 @@ from .configuration_auto import (
     CTRLConfig,
     CutoffBertConfig,
     CutoffRobertaConfig,
-    C2BertConfig,
     DebertaConfig,
     DebertaV2Config,
     DistilBertConfig,
@@ -106,6 +105,7 @@ from .configuration_auto import (
     LayoutLMConfig,
     LEDConfig,
     LongformerConfig,
+    LoraBertConfig,
     LukeConfig,
     LxmertConfig,
     M2M100Config,
@@ -311,11 +311,11 @@ TOKENIZER_MAPPING = OrderedDict(
         (LukeConfig, (LukeTokenizer, None)),
         (BigBirdPegasusConfig, (PegasusTokenizer, PegasusTokenizerFast)),
         (CanineConfig, (CanineTokenizer, None)),
-        (C2BertConfig, (C2BertTokenizer, None)),
         (CutoffBertConfig, (CutoffBertTokenizer, None)),
         (CutoffRobertaConfig, (CutoffRobertaTokenizer, None)),
         (MixupBertConfig, (MixupBertTokenizer, None)),
         (AdapterBertConfig, (AdapterBertTokenizer, None)),
+        (LoraBertConfig, (LoraBertTokenizer, None)),
     ]
 )
 
