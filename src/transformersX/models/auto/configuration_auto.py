@@ -34,7 +34,6 @@ from ..blenderbot_small.configuration_blenderbot_small import (
     BLENDERBOT_SMALL_PRETRAINED_CONFIG_ARCHIVE_MAP,
     BlenderbotSmallConfig,
 )
-from ..c2bert.configuration_c2bert import C2BERT_PRETRAINED_CONFIG_ARCHIVE_MAP, C2BertConfig
 from ..camembert.configuration_camembert import CAMEMBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, CamembertConfig
 from ..canine.configuration_canine import CANINE_PRETRAINED_CONFIG_ARCHIVE_MAP, CanineConfig
 from ..clip.configuration_clip import CLIP_PRETRAINED_CONFIG_ARCHIVE_MAP, CLIPConfig
@@ -60,6 +59,7 @@ from ..ibert.configuration_ibert import IBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, IBe
 from ..layoutlm.configuration_layoutlm import LAYOUTLM_PRETRAINED_CONFIG_ARCHIVE_MAP, LayoutLMConfig
 from ..led.configuration_led import LED_PRETRAINED_CONFIG_ARCHIVE_MAP, LEDConfig
 from ..longformer.configuration_longformer import LONGFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP, LongformerConfig
+from ..lorabert.configuration_lorabert import LORABERT_PRETRAINED_CONFIG_ARCHIVE_MAP, LoraBertConfig
 from ..luke.configuration_luke import LUKE_PRETRAINED_CONFIG_ARCHIVE_MAP, LukeConfig
 from ..lxmert.configuration_lxmert import LXMERT_PRETRAINED_CONFIG_ARCHIVE_MAP, LxmertConfig
 from ..m2m_100.configuration_m2m_100 import M2M_100_PRETRAINED_CONFIG_ARCHIVE_MAP, M2M100Config
@@ -157,11 +157,11 @@ ALL_PRETRAINED_CONFIG_ARCHIVE_MAP = dict(
         TAPAS_PRETRAINED_CONFIG_ARCHIVE_MAP,
         IBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
         HUBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
-        C2BERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
         CUTOFFBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
         CUTOFFROBERTA_PRETRAINED_CONFIG_ARCHIVE_MAP,
         MIXUPBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
         ADAPTERBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        LORABERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
     ]
     for key, value, in pretrained_map.items()
 )
@@ -235,8 +235,8 @@ CONFIG_MAPPING = OrderedDict(
         ("cutoffbert", CutoffBertConfig),
         ("cutoffroberta", CutoffRobertaConfig),
         ("mixupbert", MixupBertConfig),
-        ("c2bert", C2BertConfig),
         ("adapterbert", AdapterBertConfig),
+        ("lorabert", LoraBertConfig),
     ]
 )
 
@@ -308,8 +308,8 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("cutoffbert", "CutoffBERT"),
         ("cutoffroberta", "CutoffRoBERTa"),
         ("mixupbert", "MixupBERT"),
-        ("c2bert", "C2BERT"),
         ("adapterbert", "AdapterBERT"),
+        ("lorabert", "LORABERT"),
     ]
 )
 
