@@ -173,7 +173,6 @@ _import_structure = {
         "BlenderbotSmallTokenizer",
     ],
     "models.byt5": ["ByT5Tokenizer"],
-    "models.c2bert": ["C2BERT_PRETRAINED_CONFIG_ARCHIVE_MAP", "C2BertConfig","C2BertTokenizer"],
     "models.camembert": ["CAMEMBERT_PRETRAINED_CONFIG_ARCHIVE_MAP", "CamembertConfig"],
     "models.canine": ["CANINE_PRETRAINED_CONFIG_ARCHIVE_MAP", "CanineConfig", "CanineTokenizer"],
     "models.clip": [
@@ -214,6 +213,7 @@ _import_structure = {
     "models.layoutlm": ["LAYOUTLM_PRETRAINED_CONFIG_ARCHIVE_MAP", "LayoutLMConfig", "LayoutLMTokenizer"],
     "models.led": ["LED_PRETRAINED_CONFIG_ARCHIVE_MAP", "LEDConfig", "LEDTokenizer"],
     "models.longformer": ["LONGFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP", "LongformerConfig", "LongformerTokenizer"],
+    "models.lorabert": ["LORABERT_PRETRAINED_CONFIG_ARCHIVE_MAP", "LoraBertConfig","LoraBertTokenizer"],
     "models.luke": ["LUKE_PRETRAINED_CONFIG_ARCHIVE_MAP", "LukeConfig", "LukeTokenizer"],
     "models.lxmert": ["LXMERT_PRETRAINED_CONFIG_ARCHIVE_MAP", "LxmertConfig", "LxmertTokenizer"],
     "models.m2m_100": ["M2M_100_PRETRAINED_CONFIG_ARCHIVE_MAP", "M2M100Config"],
@@ -653,15 +653,6 @@ if is_torch_available():
             "BlenderbotSmallPreTrainedModel",
         ]
     )
-    _import_structure["models.c2bert"].extend(
-        [
-            "C2BERT_PRETRAINED_MODEL_ARCHIVE_LIST",
-            "C2BertForSequenceClassification",
-            "C2BertModel",
-            "C2BertPreTrainedModel",
-            "load_tf_weights_in_c2bert",
-        ]
-    )
     _import_structure["models.camembert"].extend(
         [
             "CAMEMBERT_PRETRAINED_MODEL_ARCHIVE_LIST",
@@ -907,6 +898,15 @@ if is_torch_available():
             "LongformerModel",
             "LongformerPreTrainedModel",
             "LongformerSelfAttention",
+        ]
+    )
+    _import_structure["models.lorabert"].extend(
+        [
+            "LORABERT_PRETRAINED_MODEL_ARCHIVE_LIST",
+            "LoraBertForSequenceClassification",
+            "LoraBertModel",
+            "LoraBertPreTrainedModel",
+            "load_tf_weights_in_lorabert",
         ]
     )
     _import_structure["models.luke"].extend(
@@ -1901,7 +1901,6 @@ if TYPE_CHECKING:
         BlenderbotSmallTokenizer,
     )
     from .models.byt5 import ByT5Tokenizer
-    from .models.c2bert import C2BERT_PRETRAINED_CONFIG_ARCHIVE_MAP, C2BertConfig, C2BertTokenizer
     from .models.camembert import CAMEMBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, CamembertConfig
     from .models.canine import CANINE_PRETRAINED_CONFIG_ARCHIVE_MAP, CanineConfig, CanineTokenizer
     from .models.clip import (
@@ -1942,6 +1941,7 @@ if TYPE_CHECKING:
     from .models.layoutlm import LAYOUTLM_PRETRAINED_CONFIG_ARCHIVE_MAP, LayoutLMConfig, LayoutLMTokenizer
     from .models.led import LED_PRETRAINED_CONFIG_ARCHIVE_MAP, LEDConfig, LEDTokenizer
     from .models.longformer import LONGFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP, LongformerConfig, LongformerTokenizer
+    from .models.lorabert import LORABERT_PRETRAINED_CONFIG_ARCHIVE_MAP, LoraBertConfig, LoraBertTokenizer
     from .models.luke import LUKE_PRETRAINED_CONFIG_ARCHIVE_MAP, LukeConfig, LukeTokenizer
     from .models.lxmert import LXMERT_PRETRAINED_CONFIG_ARCHIVE_MAP, LxmertConfig, LxmertTokenizer
     from .models.m2m_100 import M2M_100_PRETRAINED_CONFIG_ARCHIVE_MAP, M2M100Config
@@ -2319,13 +2319,6 @@ if TYPE_CHECKING:
             BlenderbotSmallModel,
             BlenderbotSmallPreTrainedModel,
         )
-        from .models.c2bert import (
-            C2BERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            C2BertForSequenceClassification,
-            C2BertModel,
-            C2BertPreTrainedModel,
-            load_tf_weights_in_c2bert,
-        )
         from .models.camembert import (
             CAMEMBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
             CamembertForCausalLM,
@@ -2528,6 +2521,13 @@ if TYPE_CHECKING:
             LongformerModel,
             LongformerPreTrainedModel,
             LongformerSelfAttention,
+        )
+        from .models.lorabert import (
+            LORABERT_PRETRAINED_MODEL_ARCHIVE_LIST,
+            LoraBertForSequenceClassification,
+            LoraBertModel,
+            LoraBertPreTrainedModel,
+            load_tf_weights_in_lorabert,
         )
         from .models.luke import (
             LUKE_PRETRAINED_MODEL_ARCHIVE_LIST,
