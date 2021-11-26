@@ -1935,46 +1935,29 @@ class BertForDualPassageEncoder(BertPreTrainedModel):
                 attentions=outputs.attentions,
             )
 
-        src_input_ids, trg_input_ids = input_ids.chunk(2, dim=1)
-        src_attention_mask, trg_attention_mask = attention_mask.chunk(2, dim=1) if attention_mask is not None else (None, None)
-        src_token_type_ids, trg_token_type_ids = token_type_ids.chunk(2, dim=1) if token_type_ids is not None else (None, None)
-        src_position_ids, trg_position_ids = position_ids.chunk(2, dim=1) if position_ids is not None else (None, None)
-        src_inputs_embeds, trg_inputs_embeds = inputs_embeds.chunk(2, dim=1) if inputs_embeds is not None else (None, None)
+        b, l = input_ids.size()
+        flatten_input_ids = input_ids.reshape(-1, l)
+        flatten_attention_mask = attention_mask.reshape(-1, l) if attention_mask is not None else None
+        flatten_token_type_ids = token_type_ids.reshape(-1, l) if token_type_ids is not None else None
+        flatten_position_ids = position_ids.reshape(-1, l) if position_ids is not None else None
+        flatten_inputs_embeds = inputs_embeds.reshape(-1, l, self.config.hidden_size) if inputs_embeds is not None else None
 
-        src_input_ids, trg_input_ids = src_input_ids.squeeze(1), trg_input_ids.squeeze(1)
-        src_attention_mask, trg_attention_mask = (src_attention_mask.squeeze(1), trg_attention_mask.squeeze(1)) if attention_mask is not None else (None, None)
-        src_token_type_ids, trg_token_type_ids = (src_token_type_ids.squeeze(1), trg_token_type_ids.squeeze(1)) if token_type_ids is not None else (None, None)
-        src_position_ids, trg_position_ids = (src_position_ids.squeeze(1), trg_position_ids.squeeze(1)) if position_ids is not None else (None, None)
-        src_inputs_embeds, trg_inputs_embeds = (src_inputs_embeds.squeeze(1), trg_inputs_embeds.squeeze(1)) if inputs_embeds is not None else (None, None)
-
-        src_outputs = self.bert(
-            src_input_ids,
-            attention_mask=src_attention_mask,
-            token_type_ids=src_token_type_ids,
-            position_ids=src_position_ids,
+        flatten_outputs = self.bert(
+            flatten_input_ids,
+            attention_mask=flatten_attention_mask,
+            token_type_ids=flatten_token_type_ids,
+            position_ids=flatten_position_ids,
             head_mask=head_mask,
-            inputs_embeds=src_inputs_embeds,
+            inputs_embeds=flatten_inputs_embeds,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
         )
 
-        trg_outputs = self.bert(
-            trg_input_ids,
-            attention_mask=trg_attention_mask,
-            token_type_ids=trg_token_type_ids,
-            position_ids=trg_position_ids,
-            head_mask=head_mask,
-            inputs_embeds=trg_inputs_embeds,
-            output_attentions=output_attentions,
-            output_hidden_states=output_hidden_states,
-            return_dict=return_dict,
-        )
+        flatten_pooled_output = self.pooler(flatten_outputs[0])
+        src_pooled_output, trg_pooled_output = flatten_pooled_output.reshape(b, 2, self.config.hidden_size).chunk(2, dim=1)
+        src_pooled_output, trg_pooled_output = src_pooled_output.squeeze(dim=1), trg_pooled_output.squeeze(dim=1)
 
-        src_pooled_output = self.dropout(self.pooler(src_outputs[0]))
-        trg_pooled_output = self.dropout(self.pooler(trg_outputs[0]))
-
-        b = labels.size(0)
         mask = (labels.unsqueeze(-1).expand(-1, b) == labels.unsqueeze(0).expand(b, -1)) & (1 - torch.eye(b)).to(labels.device).bool()
         cl_logits = torch.einsum('ik,jk->ij', src_pooled_output, trg_pooled_output).masked_fill(mask, float('-inf'))
         cl_labels = torch.arange(b).to(labels.device)
@@ -1983,8 +1966,9 @@ class BertForDualPassageEncoder(BertPreTrainedModel):
         cl_loss = loss_fct(cl_logits.view(-1, labels.size(0)), cl_labels.view(-1))
 
         if self.cls_loss_wgt is not None and self.cls_loss_wgt > 0.0:
-            src_logits = self.classifier(self.dropout(src_outputs[1]))
-            trg_logits = self.classifier(self.dropout(trg_outputs[1]))
+            flatten_logits = self.classifier(self.dropout(flatten_outputs[1]))
+            src_logits, trg_logits = flatten_logits.reshape(b, 2, self.num_labels).chunk(2, dim=1)
+            src_logits, trg_logits = src_logits.squeeze(dim=1), trg_logits.squeeze(dim=1)
             src_loss = loss_fct(src_logits.view(-1, self.num_labels), labels.view(-1))
             trg_loss = loss_fct(trg_logits.view(-1, self.num_labels), labels.view(-1))
             cls_loss = src_loss + trg_loss
