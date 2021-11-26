@@ -1935,7 +1935,7 @@ class BertForDualPassageEncoder(BertPreTrainedModel):
                 attentions=outputs.attentions,
             )
 
-        b, l = input_ids.size()
+        b, _, l = input_ids.size()
         flatten_input_ids = input_ids.reshape(-1, l)
         flatten_attention_mask = attention_mask.reshape(-1, l) if attention_mask is not None else None
         flatten_token_type_ids = token_type_ids.reshape(-1, l) if token_type_ids is not None else None
