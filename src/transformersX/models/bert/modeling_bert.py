@@ -1956,7 +1956,7 @@ class BertForDualPassageEncoder(BertPreTrainedModel):
 
         flatten_pooled_output = self.pooler(flatten_outputs[0])
         src_pooled_output, trg_pooled_output = flatten_pooled_output.reshape(b, 2, self.config.hidden_size).chunk(2, dim=1)
-        src_pooled_output, trg_pooled_output = src_pooled_output.squeeze(dim=1), trg_pooled_output.squeeze(dim=1)
+        src_pooled_output, trg_pooled_output = src_pooled_output.squeeze(dim=1).contiguous(), trg_pooled_output.squeeze(dim=1).contiguous()
 
         mask = (labels.unsqueeze(-1).expand(-1, b) == labels.unsqueeze(0).expand(b, -1)) & (1 - torch.eye(b)).to(labels.device).bool()
         cl_logits = torch.einsum('ik,jk->ij', src_pooled_output, trg_pooled_output).masked_fill(mask, float('-inf'))
@@ -1968,7 +1968,7 @@ class BertForDualPassageEncoder(BertPreTrainedModel):
         if self.cls_loss_wgt is not None and self.cls_loss_wgt > 0.0:
             flatten_logits = self.classifier(self.dropout(flatten_outputs[1]))
             src_logits, trg_logits = flatten_logits.reshape(b, 2, self.num_labels).chunk(2, dim=1)
-            src_logits, trg_logits = src_logits.squeeze(dim=1), trg_logits.squeeze(dim=1)
+            src_logits, trg_logits = src_logits.squeeze(dim=1).contiguous(), trg_logits.squeeze(dim=1).contiguous()
             src_loss = loss_fct(src_logits.view(-1, self.num_labels), labels.view(-1))
             trg_loss = loss_fct(trg_logits.view(-1, self.num_labels), labels.view(-1))
             cls_loss = src_loss + trg_loss
