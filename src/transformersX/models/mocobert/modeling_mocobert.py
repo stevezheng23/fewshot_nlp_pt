@@ -453,39 +453,45 @@ class MoCoBertForDualPassageEncoder(MoCoBertPreTrainedModel):
         self.pooler_mo = MoCoBertPooler(config)
 
         self.register_buffer("memory_ptr", torch.zeros(1, dtype=torch.long))
-        self.register_buffer("memory_embed", torch.randn(config.hidden_size, self.memory_size))
-        self.register_buffer("memory_label", -torch.ones(self.memory_size, dtype=torch.long))
-        self.memory_embed = F.normalize(self.memory_embed, dim=0)
+        self.register_buffer("memory_embeds", torch.randn(config.hidden_size, self.memory_size))
+        self.register_buffer("memory_labels", -torch.ones(self.memory_size, dtype=torch.long))
+        self.memory_embeds = F.normalize(self.memory_embeds, dim=0)
 
         self.init_weights()
         self._copy_weights()
-    
+
     def _copy_weights(self):
         for q_module, k_module in [(self.bert, self.bert_mo), (self.pooler, self.pooler_mo)]:
             for q_param, k_param in zip(q_module.parameters(), k_module.parameters()):
                 k_param.data.copy_(q_param.data)
                 k_param.requires_grad = False
-    
-    @torch.no_grad()
-    def _all_gather_and_concat(self, t):
-        t_gather = [torch.zeros_like(t) for _ in range(torch.distributed.get_world_size())]
-        torch.distributed.all_gather(t_gather, t, async_op=False)
-        return torch.cat(t_gather, dim=0)
 
     @torch.no_grad()
     def _update_momentum_encoder(self):
         for q_module, k_module in [(self.bert, self.bert_mo), (self.pooler, self.pooler_mo)]:
             for q_param, k_param in zip(q_module.parameters(), k_module.parameters()):
                 k_param.data = k_param.data * self.momentum + q_param.data * (1.0 - self.momentum)
-    
+
     @torch.no_grad()
     def _update_memory_bank(self, embeds, labels):
         embeds = self._all_gather_and_concat(embeds)
         b, p = embeds.size(0), int(self.memory_ptr)
         assert self.memory_size % b == 0
-        self.memory_embed[:,p:p+b] = embeds.T
-        self.memory_label[p:p+b] = labels
+        self.memory_embeds[:,p:p+b] = embeds.T
+        self.memory_labels[p:p+b] = labels
         self.memory_ptr[0] = (p + b) % self.memory_size
+
+    @torch.no_grad()
+    def _get_memory_mask(self, labels):
+        labels = labels.unsqueeze(-1).expand(-1, self.memory_size)
+        memory_labels = self.memory_labels.clone().detach().unsqueeze(0).expand(labels.size(0), -1)
+        return (labels == memory_labels) | (memory_labels == -1)
+
+    @torch.no_grad()
+    def _all_gather_and_concat(self, t):
+        t_gather = [torch.zeros_like(t) for _ in range(torch.distributed.get_world_size())]
+        torch.distributed.all_gather(t_gather, t, async_op=False)
+        return torch.cat(t_gather, dim=0)
 
     @add_start_docstrings_to_model_forward(MOCOBERT_INPUTS_DOCSTRING.format("batch_size, 2, sequence_length"))
     @add_code_sample_docstrings(
@@ -539,48 +545,59 @@ class MoCoBertForDualPassageEncoder(MoCoBertPreTrainedModel):
             )
 
         b, _, l = input_ids.size()
-        flatten_input_ids = input_ids.reshape(-1, l)
-        flatten_attention_mask = attention_mask.reshape(-1, l) if attention_mask is not None else None
-        flatten_token_type_ids = token_type_ids.reshape(-1, l) if token_type_ids is not None else None
-        flatten_position_ids = position_ids.reshape(-1, l) if position_ids is not None else None
-        flatten_inputs_embeds = inputs_embeds.reshape(-1, l, self.config.hidden_size) if inputs_embeds is not None else None
+        src_input_ids, trg_input_ids = input_ids.chunk(2, dim=1)
+        src_attention_mask, trg_attention_mask = attention_mask.chunk(2, dim=1) if attention_mask is not None else (None, None)
+        src_token_type_ids, trg_token_type_ids = token_type_ids.chunk(2, dim=1) if token_type_ids is not None else (None, None)
+        src_position_ids, trg_position_ids = position_ids.chunk(2, dim=1) if position_ids is not None else (None, None)
+        src_inputs_embeds, trg_inputs_embeds = inputs_embeds.chunk(2, dim=1) if inputs_embeds is not None else (None, None)
 
-        flatten_outputs = self.bert(
-            flatten_input_ids,
-            attention_mask=flatten_attention_mask,
-            token_type_ids=flatten_token_type_ids,
-            position_ids=flatten_position_ids,
+        src_input_ids, trg_input_ids = src_input_ids.squeeze(dim=1), trg_input_ids.squeeze(dim=1)
+        src_attention_mask, trg_attention_mask = (src_attention_mask.squeeze(1), trg_attention_mask.squeeze(1)) if attention_mask is not None else (None, None)
+        src_token_type_ids, trg_token_type_ids = (src_token_type_ids.squeeze(1), trg_token_type_ids.squeeze(1)) if token_type_ids is not None else (None, None)
+        src_position_ids, trg_position_ids = (src_position_ids.squeeze(1), trg_position_ids.squeeze(1)) if position_ids is not None else (None, None)
+        src_inputs_embeds, trg_inputs_embeds = (src_inputs_embeds.squeeze(1), trg_inputs_embeds.squeeze(1)) if inputs_embeds is not None else (None, None)
+
+        src_outputs = self.bert(
+            src_input_ids,
+            attention_mask=src_attention_mask,
+            token_type_ids=src_token_type_ids,
+            position_ids=src_position_ids,
             head_mask=head_mask,
-            inputs_embeds=flatten_inputs_embeds,
+            inputs_embeds=src_inputs_embeds,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
         )
 
-        flatten_pooled_output = self.pooler(flatten_outputs[0])
-        src_pooled_output, trg_pooled_output = flatten_pooled_output.reshape(b, 2, self.config.hidden_size).chunk(2, dim=1)
-        src_pooled_output, trg_pooled_output = src_pooled_output.squeeze(dim=1).contiguous(), trg_pooled_output.squeeze(dim=1).contiguous()
+        src_pooled_output = self.pooler(src_outputs[0])
+        src_pooled_output = F.normalize(src_pooled_output, dim=-1)
 
-        mask = (labels.unsqueeze(-1).expand(-1, b) == labels.unsqueeze(0).expand(b, -1)) & (1 - torch.eye(b)).to(labels.device).bool()
-        cl_logits = torch.einsum('ik,jk->ij', src_pooled_output, trg_pooled_output).masked_fill(mask, float('-inf'))
-        cl_labels = torch.arange(b).to(labels.device)
+        with torch.no_grad():
+            self._update_momentum_encoder()
+
+            trg_outputs = self.bert(
+                trg_input_ids,
+                attention_mask=trg_attention_mask,
+                token_type_ids=trg_token_type_ids,
+                position_ids=trg_position_ids,
+                head_mask=head_mask,
+                inputs_embeds=trg_inputs_embeds,
+                output_attentions=output_attentions,
+                output_hidden_states=output_hidden_states,
+                return_dict=return_dict,
+            )
+
+            trg_pooled_output = self.pooler(trg_outputs[0])
+            trg_pooled_output = F.normalize(trg_pooled_output, dim=-1)
+        
+        mask = self._get_memory_mask(labels)
+        pos_logits = torch.einsum('ik,ik->i', src_pooled_output, trg_pooled_output).unsqueeze(-1)
+        neg_logits = torch.einsum('ik,kj->ij', src_pooled_output, self.memory_embeds.clone().detach()).masked_fill(mask, float('-inf'))
+        logits = torch.cat([pos_logits, neg_logits], dim=-1)
+        labels = torch.zeros(b, dtype=torch.long).to(labels.device)
         
         loss_fct = CrossEntropyLoss()
-        cl_loss = loss_fct(cl_logits.view(-1, labels.size(0)), cl_labels.view(-1))
-
-        if self.cls_loss_wgt is not None and self.cls_loss_wgt > 0.0:
-            flatten_logits = self.classifier(self.dropout(flatten_outputs[1]))
-            src_logits, trg_logits = flatten_logits.reshape(b, 2, self.num_labels).chunk(2, dim=1)
-            src_logits, trg_logits = src_logits.squeeze(dim=1).contiguous(), trg_logits.squeeze(dim=1).contiguous()
-            src_loss = loss_fct(src_logits.view(-1, self.num_labels), labels.view(-1))
-            trg_loss = loss_fct(trg_logits.view(-1, self.num_labels), labels.view(-1))
-            cls_loss = src_loss + trg_loss
-            cls_logits = src_logits + trg_logits
-            loss = cl_loss + cls_loss * self.cls_loss_wgt
-            logits = cls_logits
-        else:
-            loss = cl_loss
-            logits = cl_logits
+        loss = loss_fct(logits.view(-1, labels.size(0)), labels.view(-1))
 
         if not return_dict:
             return (loss, logits,)
