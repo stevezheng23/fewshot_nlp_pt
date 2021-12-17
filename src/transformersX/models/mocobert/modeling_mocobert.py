@@ -440,18 +440,52 @@ class MoCoBertModel(MoCoBertPreTrainedModel):
     MOCOBERT_START_DOCSTRING,
 )
 class MoCoBertForDualPassageEncoder(MoCoBertPreTrainedModel):
-    def __init__(self, config, cls_loss_wgt=None):
+    def __init__(self, config):
         super().__init__(config)
-        self.num_labels = config.num_labels
-        self.cls_loss_wgt = cls_loss_wgt
+        self.memory_size = config.moco_memory_size
+        self.momentum = config.moco_momentum
+        self.temperature = config.moco_temperature
 
         self.bert = MoCoBertModel(config)
         self.pooler = MoCoBertPooler(config)
-        self.dropout = nn.Dropout(config.hidden_dropout_prob)
-        if self.cls_loss_wgt is not None and cls_loss_wgt > 0.0:
-            self.classifier = nn.Linear(config.hidden_size, config.num_labels)
+
+        self.bert_mo = MoCoBertModel(config)
+        self.pooler_mo = MoCoBertPooler(config)
+
+        self.register_buffer("memory_ptr", torch.zeros(1, dtype=torch.long))
+        self.register_buffer("memory_embed", torch.randn(config.hidden_size, self.memory_size))
+        self.register_buffer("memory_label", -torch.ones(self.memory_size, dtype=torch.long))
+        self.memory_embed = F.normalize(self.memory_embed, dim=0)
 
         self.init_weights()
+        self._copy_weights()
+    
+    def _copy_weights(self):
+        for q_module, k_module in [(self.bert, self.bert_mo), (self.pooler, self.pooler_mo)]:
+            for q_param, k_param in zip(q_module.parameters(), k_module.parameters()):
+                k_param.data.copy_(q_param.data)
+                k_param.requires_grad = False
+    
+    @torch.no_grad()
+    def _all_gather_and_concat(self, t):
+        t_gather = [torch.zeros_like(t) for _ in range(torch.distributed.get_world_size())]
+        torch.distributed.all_gather(t_gather, t, async_op=False)
+        return torch.cat(t_gather, dim=0)
+
+    @torch.no_grad()
+    def _update_momentum_encoder(self):
+        for q_module, k_module in [(self.bert, self.bert_mo), (self.pooler, self.pooler_mo)]:
+            for q_param, k_param in zip(q_module.parameters(), k_module.parameters()):
+                k_param.data = k_param.data * self.momentum + q_param.data * (1.0 - self.momentum)
+    
+    @torch.no_grad()
+    def _update_memory_bank(self, embeds, labels):
+        embeds = self._all_gather_and_concat(embeds)
+        b, p = embeds.size(0), int(self.memory_ptr)
+        assert self.memory_size % b == 0
+        self.memory_embed[:,p:p+b] = embeds.T
+        self.memory_label[p:p+b] = labels
+        self.memory_ptr[0] = (p + b) % self.memory_size
 
     @add_start_docstrings_to_model_forward(MOCOBERT_INPUTS_DOCSTRING.format("batch_size, 2, sequence_length"))
     @add_code_sample_docstrings(
@@ -494,7 +528,6 @@ class MoCoBertForDualPassageEncoder(MoCoBertPreTrainedModel):
             )
 
             pooled_output = self.pooler(outputs[0])
-            pooled_output = self.dropout(pooled_output)
 
             if not return_dict:
                 return (pooled_output,) + outputs[2:]
