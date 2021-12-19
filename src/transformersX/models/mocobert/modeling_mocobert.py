@@ -597,7 +597,7 @@ class MoCoBertForDualPassageEncoder(MoCoBertPreTrainedModel):
         labels = torch.zeros(b, dtype=torch.long).to(labels.device)
         
         loss_fct = CrossEntropyLoss()
-        loss = loss_fct(logits.view(-1, labels.size(0)), labels.view(-1))
+        loss = loss_fct(logits.view(-1, self.memory_size+1), labels.view(-1))
 
         if not return_dict:
             return (loss, logits,)
