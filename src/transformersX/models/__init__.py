@@ -65,6 +65,7 @@ from . import (
     megatron_bert,
     mmbt,
     mobilebert,
+    mocobert,
     mpnet,
     mt5,
     mixupbert,

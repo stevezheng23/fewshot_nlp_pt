@@ -59,6 +59,7 @@ from ..lorabert.tokenization_lorabert import LoraBertTokenizer
 from ..luke.tokenization_luke import LukeTokenizer
 from ..lxmert.tokenization_lxmert import LxmertTokenizer
 from ..mobilebert.tokenization_mobilebert import MobileBertTokenizer
+from ..mocobert.tokenization_mocobert import MoCoBertTokenizer
 from ..mpnet.tokenization_mpnet import MPNetTokenizer
 from ..mixupbert.tokenization_mixupbert import MixupBertTokenizer
 from ..openai.tokenization_openai import OpenAIGPTTokenizer
@@ -113,6 +114,7 @@ from .configuration_auto import (
     MBartConfig,
     MixupBertConfig,
     MobileBertConfig,
+    MoCoBertConfig,
     MPNetConfig,
     MT5Config,
     OpenAIGPTConfig,
@@ -316,6 +318,7 @@ TOKENIZER_MAPPING = OrderedDict(
         (MixupBertConfig, (MixupBertTokenizer, None)),
         (AdapterBertConfig, (AdapterBertTokenizer, None)),
         (LoraBertConfig, (LoraBertTokenizer, None)),
+        (MoCoBertConfig, (MoCoBertTokenizer, None)),
     ]
 )
 

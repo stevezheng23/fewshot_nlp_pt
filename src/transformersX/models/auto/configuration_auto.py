@@ -67,6 +67,7 @@ from ..marian.configuration_marian import MarianConfig
 from ..mbart.configuration_mbart import MBART_PRETRAINED_CONFIG_ARCHIVE_MAP, MBartConfig
 from ..megatron_bert.configuration_megatron_bert import MEGATRON_BERT_PRETRAINED_CONFIG_ARCHIVE_MAP, MegatronBertConfig
 from ..mobilebert.configuration_mobilebert import MobileBertConfig
+from ..mocobert.configuration_mocobert import MOCOBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, MoCoBertConfig
 from ..mpnet.configuration_mpnet import MPNET_PRETRAINED_CONFIG_ARCHIVE_MAP, MPNetConfig
 from ..mt5.configuration_mt5 import MT5Config
 from ..mixupbert.configuration_mixupbert import MIXUPBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, MixupBertConfig
@@ -162,6 +163,7 @@ ALL_PRETRAINED_CONFIG_ARCHIVE_MAP = dict(
         MIXUPBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
         ADAPTERBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
         LORABERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        MOCOBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
     ]
     for key, value, in pretrained_map.items()
 )
@@ -237,6 +239,7 @@ CONFIG_MAPPING = OrderedDict(
         ("mixupbert", MixupBertConfig),
         ("adapterbert", AdapterBertConfig),
         ("lorabert", LoraBertConfig),
+        ("mocobert", MoCoBertConfig),
     ]
 )
 
@@ -310,6 +313,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("mixupbert", "MixupBERT"),
         ("adapterbert", "AdapterBERT"),
         ("lorabert", "LORABERT"),
+        ("mocobert", "MoCoBERT"),
     ]
 )
 
