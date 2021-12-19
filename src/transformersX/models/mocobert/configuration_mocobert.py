@@ -122,6 +122,7 @@ class MoCoBertConfig(PretrainedConfig):
         position_embedding_type="absolute",
         use_cache=True,
         classifier_dropout=None,
+        moco_pooler_type="first",
         moco_pooler_act="tanh",
         moco_pooler_dropout=0.1,
         moco_memory_size=65536,
@@ -147,6 +148,7 @@ class MoCoBertConfig(PretrainedConfig):
         self.position_embedding_type = position_embedding_type
         self.use_cache = use_cache
         self.classifier_dropout = classifier_dropout
+        self.moco_pooler_type = moco_pooler_type
         self.moco_pooler_act = moco_pooler_act
         self.moco_pooler_dropout = moco_pooler_dropout
         self.moco_memory_size = moco_memory_size
