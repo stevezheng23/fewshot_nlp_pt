@@ -172,7 +172,7 @@ class MoCoBertPooler(nn.Module):
         if self.pooler_type == "avg":
             x = torch.mean(hidden_states, dim=1)
         elif self.pooler_type == "max":
-            x = torch.max(hidden_states, dim=1)
+            x, _ = torch.max(hidden_states, dim=1)
         else:
             x = hidden_states[:, 0, :]
         x = self.dropout(x)
