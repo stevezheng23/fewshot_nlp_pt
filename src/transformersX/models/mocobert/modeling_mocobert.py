@@ -534,6 +534,7 @@ class MoCoBertForDualPassageEncoder(MoCoBertPreTrainedModel):
             )
 
             pooled_output = self.pooler(outputs[0])
+            pooled_output = F.normalize(pooled_output, dim=-1)
 
             if not return_dict:
                 return (pooled_output,) + outputs[2:]
