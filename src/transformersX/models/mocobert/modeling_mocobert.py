@@ -157,6 +157,7 @@ def load_tf_weights_in_mocobert(model, config, tf_checkpoint_path):
 class MoCoBertPooler(nn.Module):
     def __init__(self, config):
         super().__init__()
+        self.pooler_type = config.moco_pooler_type
         if isinstance(config.moco_pooler_act, str):
             self.activation = ACT2FN[config.moco_pooler_act]
         else:
@@ -166,9 +167,14 @@ class MoCoBertPooler(nn.Module):
         self.dropout = nn.Dropout(config.moco_pooler_dropout)
 
     def forward(self, hidden_states):
-        # We "pool" the model by simply taking the hidden state corresponding
-        # to the first token.
-        x = hidden_states[:, 0]
+        # We "pool" the model based on the pooler type (e.g., 'first', 'avg', 'max', etc.)
+        # By default simply taking the hidden state corresponding to the first token.
+        if self.pooler_type == "avg":
+            x = torch.mean(hidden_states, dim=1)
+        elif self.pooler_type == "max":
+            x = torch.max(hidden_states, dim=1)
+        else:
+            x = hidden_states[:, 0, :]
         x = self.dropout(x)
         x = self.intermediate(x)
         x = self.activation(x)
