@@ -221,6 +221,7 @@ from ..mobilebert.modeling_mobilebert import (
     MobileBertForTokenClassification,
     MobileBertModel,
 )
+from ..mocobert.modeling_mocobert import MoCoBertForDualPassageEncoder, MoCoBertModel
 from ..mpnet.modeling_mpnet import (
     MPNetForMaskedLM,
     MPNetForMultipleChoice,
@@ -369,6 +370,7 @@ from .configuration_auto import (
     MBartConfig,
     MegatronBertConfig,
     MobileBertConfig,
+    MoCoBertConfig,
     MPNetConfig,
     MT5Config,
     MixupBertConfig,
@@ -466,6 +468,7 @@ MODEL_MAPPING = OrderedDict(
         (MixupBertConfig, MixupBertModel),
         (AdapterBertConfig, AdapterBertModel),
         (LoraBertConfig, LoraBertModel),
+        (MoCoBertConfig, MoCoBertModel),
         (IBertConfig, IBertModel),
     ]
 )
@@ -597,6 +600,7 @@ MODEL_FOR_DUAL_PASSAGE_ENCODER_MAPPING = OrderedDict(
     [
         # Model for Dual Passage Encoder mapping
         (BertConfig, BertForDualPassageEncoder),
+        (MoCoBertConfig, MoCoBertForDualPassageEncoder),
     ]
 )
 

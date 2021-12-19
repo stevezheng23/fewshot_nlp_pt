@@ -222,6 +222,7 @@ _import_structure = {
     "models.megatron_bert": ["MEGATRON_BERT_PRETRAINED_CONFIG_ARCHIVE_MAP", "MegatronBertConfig"],
     "models.mmbt": ["MMBTConfig"],
     "models.mobilebert": ["MOBILEBERT_PRETRAINED_CONFIG_ARCHIVE_MAP", "MobileBertConfig", "MobileBertTokenizer"],
+    "models.mocobert": ["MOCOBERT_PRETRAINED_CONFIG_ARCHIVE_MAP", "MoCoBertConfig","MoCoBertTokenizer"],
     "models.mpnet": ["MPNET_PRETRAINED_CONFIG_ARCHIVE_MAP", "MPNetConfig", "MPNetTokenizer"],
     "models.mt5": ["MT5Config"],
     "models.mixupbert": ["MIXUPBERT_PRETRAINED_CONFIG_ARCHIVE_MAP", "MixupBertConfig","MixupBertTokenizer"],
@@ -979,6 +980,15 @@ if is_torch_available():
             "MobileBertModel",
             "MobileBertPreTrainedModel",
             "load_tf_weights_in_mobilebert",
+        ]
+    )
+    _import_structure["models.mocobert"].extend(
+        [
+            "MOCOBERT_PRETRAINED_MODEL_ARCHIVE_LIST",
+            "MoCoBertForDualPassageEncoder",
+            "MoCoBertModel",
+            "MoCoBertPreTrainedModel",
+            "load_tf_weights_in_mocobert",
         ]
     )
     _import_structure["models.mpnet"].extend(
@@ -1950,6 +1960,7 @@ if TYPE_CHECKING:
     from .models.megatron_bert import MEGATRON_BERT_PRETRAINED_CONFIG_ARCHIVE_MAP, MegatronBertConfig
     from .models.mmbt import MMBTConfig
     from .models.mobilebert import MOBILEBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, MobileBertConfig, MobileBertTokenizer
+    from .models.mocobert import MOCOBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, MoCoBertConfig, MoCoBertTokenizer
     from .models.mpnet import MPNET_PRETRAINED_CONFIG_ARCHIVE_MAP, MPNetConfig, MPNetTokenizer
     from .models.mt5 import MT5Config
     from .models.mixupbert import MIXUPBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, MixupBertConfig, MixupBertTokenizer
@@ -2588,6 +2599,13 @@ if TYPE_CHECKING:
             MobileBertModel,
             MobileBertPreTrainedModel,
             load_tf_weights_in_mobilebert,
+        )
+        from .models.mocobert import (
+            MOCOBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
+            MoCoBertForDualPassageEncoder,
+            MoCoBertModel,
+            MoCoBertPreTrainedModel,
+            load_tf_weights_in_mocobert,
         )
         from .models.mpnet import (
             MPNET_PRETRAINED_MODEL_ARCHIVE_LIST,
