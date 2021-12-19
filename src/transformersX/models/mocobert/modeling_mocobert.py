@@ -61,7 +61,6 @@ from ...utils import logging
 from .configuration_mocobert import MoCoBertConfig
 from ..bert.modeling_bert import BertEmbeddings as MoCoBertEmbeddings
 from ..bert.modeling_bert import BertEncoder as MoCoBertEncoder
-from ..bert.modeling_bert import BertPooler as MoCoBertPooler
 
 
 logger = logging.get_logger(__name__)
@@ -153,6 +152,29 @@ def load_tf_weights_in_mocobert(model, config, tf_checkpoint_path):
         logger.info(f"Initialize PyTorch weight {name}")
         pointer.data = torch.from_numpy(array)
     return model
+
+
+class MoCoBertPooler(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        if isinstance(config.moco_pooler_act, str):
+            self.activation = ACT2FN[config.moco_pooler_act]
+        else:
+            self.activation = config.moco_pooler_act
+        self.intermediate = nn.Linear(config.hidden_size, config.hidden_size)
+        self.output = nn.Linear(config.hidden_size, config.hidden_size)
+        self.dropout = nn.Dropout(config.moco_pooler_dropout)
+
+    def forward(self, hidden_states):
+        # We "pool" the model by simply taking the hidden state corresponding
+        # to the first token.
+        x = hidden_states[:, 0]
+        x = self.dropout(x)
+        x = self.intermediate(x)
+        x = self.activation(x)
+        x = self.dropout(x)
+        x = self.output(x)
+        return x
 
 
 class MoCoBertPreTrainedModel(PreTrainedModel):
