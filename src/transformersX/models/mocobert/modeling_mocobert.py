@@ -606,7 +606,7 @@ class MoCoBertForDualPassageEncoder(MoCoBertPreTrainedModel):
         with torch.no_grad():
             self._update_momentum_encoder()
 
-            trg_outputs = self.bert(
+            trg_outputs = self.bert_mo(
                 trg_input_ids,
                 attention_mask=trg_attention_mask,
                 token_type_ids=trg_token_type_ids,
@@ -618,7 +618,7 @@ class MoCoBertForDualPassageEncoder(MoCoBertPreTrainedModel):
                 return_dict=return_dict,
             )
 
-            trg_pooled_output = self.pooler(trg_outputs[0])
+            trg_pooled_output = self.pooler_mo(trg_outputs[0])
             trg_pooled_output = F.normalize(trg_pooled_output, dim=-1)
 
         self._update_memory_bank(trg_pooled_output, labels)
