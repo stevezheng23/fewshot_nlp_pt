@@ -517,6 +517,8 @@ class MoCoBertForDualPassageEncoder(MoCoBertPreTrainedModel):
 
     @torch.no_grad()
     def _all_gather_and_concat(self, t):
+        if not torch.distributed.is_initialized():
+            return t
         t_gather = [torch.zeros_like(t) for _ in range(torch.distributed.get_world_size())]
         torch.distributed.all_gather(t_gather, t, async_op=False)
         return torch.cat(t_gather, dim=0)
@@ -618,7 +620,9 @@ class MoCoBertForDualPassageEncoder(MoCoBertPreTrainedModel):
 
             trg_pooled_output = self.pooler(trg_outputs[0])
             trg_pooled_output = F.normalize(trg_pooled_output, dim=-1)
-        
+
+        self._update_memory_bank(trg_pooled_output, labels)
+
         mask = self._get_memory_mask(labels)
         pos_logits = torch.einsum('ik,ik->i', src_pooled_output, trg_pooled_output).unsqueeze(-1)
         neg_logits = torch.einsum('ik,kj->ij', src_pooled_output, self.memory_embeds.clone().detach()).masked_fill(mask, float('-inf'))
