@@ -621,12 +621,11 @@ class MoCoBertForDualPassageEncoder(MoCoBertPreTrainedModel):
             trg_pooled_output = self.pooler_mo(trg_outputs[0])
             trg_pooled_output = F.normalize(trg_pooled_output, dim=-1)
 
-        self._update_memory_bank(trg_pooled_output, labels)
-
         mask = self._get_memory_mask(labels)
         pos_logits = torch.einsum('ik,ik->i', src_pooled_output, trg_pooled_output).unsqueeze(-1)
         neg_logits = torch.einsum('ik,kj->ij', src_pooled_output, self.memory_embeds.clone().detach()).masked_fill(mask, float('-inf'))
         logits = torch.cat([pos_logits, neg_logits], dim=-1) / self.temperature
+        self._update_memory_bank(trg_pooled_output, labels)
         labels = torch.zeros(b, dtype=torch.long).to(labels.device)
         
         loss_fct = CrossEntropyLoss()
