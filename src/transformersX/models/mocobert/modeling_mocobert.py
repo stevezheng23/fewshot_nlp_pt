@@ -505,7 +505,8 @@ class MoCoBertForDualPassageEncoder(MoCoBertPreTrainedModel):
         embeds = self._all_gather_and_concat(embeds)
         labels = self._all_gather_and_concat(labels)
         b, p = embeds.size(0), int(self.memory_ptr)
-        assert self.memory_size % b == 0
+        if (self.memory_size-p) % b != 0:
+            p -= (self.memory_size-p) % b
         self.memory_embeds[:,p:p+b] = embeds.T
         self.memory_labels[p:p+b] = labels
         self.memory_ptr[0] = (p + b) % self.memory_size
