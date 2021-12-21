@@ -513,7 +513,7 @@ class MoCoBertForDualPassageEncoder(MoCoBertPreTrainedModel):
     def _get_memory_mask(self, labels):
         labels = labels.unsqueeze(-1).expand(-1, self.memory_size)
         memory_labels = self.memory_labels.clone().detach().unsqueeze(0).expand(labels.size(0), -1)
-        return (labels == memory_labels) | (memory_labels == -1)
+        return (labels == memory_labels)
 
     @torch.no_grad()
     def _all_gather_and_concat(self, t):
