@@ -158,13 +158,8 @@ class MoCoBertPooler(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.pooler_type = config.moco_pooler_type
-        if isinstance(config.moco_pooler_act, str):
-            self.activation = ACT2FN[config.moco_pooler_act]
-        else:
-            self.activation = config.moco_pooler_act
-        self.intermediate = nn.Linear(config.hidden_size, config.hidden_size)
-        self.output = nn.Linear(config.hidden_size, config.hidden_size)
-        self.dropout = nn.Dropout(config.moco_pooler_dropout)
+        self.dense = nn.Linear(config.hidden_size, config.hidden_size)
+        self.activation = nn.Tanh()
 
     def forward(self, hidden_states):
         # We "pool" the model based on the pooler type (e.g., 'first', 'avg', 'max', etc.)
@@ -175,11 +170,8 @@ class MoCoBertPooler(nn.Module):
             x, _ = torch.max(hidden_states, dim=1)
         else:
             x = hidden_states[:, 0, :]
-        x = self.dropout(x)
-        x = self.intermediate(x)
+        x = self.dense(x)
         x = self.activation(x)
-        x = self.dropout(x)
-        x = self.output(x)
         return x
 
 
