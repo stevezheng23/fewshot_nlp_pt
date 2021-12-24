@@ -454,7 +454,108 @@ class MoCoBertModel(MoCoBertPreTrainedModel):
 
 @add_start_docstrings(
     """
-    Bert Model with a dual encoder head on top for passage retrieval tasks (a linear layer on top of the pooled output
+    MoCoBert Model transformer with a sequence classification/regression head on top (a linear layer on top of the pooled
+    output) e.g. for GLUE tasks.
+    """,
+    MOCOBERT_START_DOCSTRING,
+)
+class MoCoBertForSequenceClassification(MoCoBertPreTrainedModel):
+    def __init__(self, config):
+        super().__init__(config)
+        self.num_labels = config.num_labels
+        self.config = config
+
+        self.bert = MoCoBertModel(config)
+        classifier_dropout = (
+            config.classifier_dropout if config.classifier_dropout is not None else config.hidden_dropout_prob
+        )
+        self.dropout = nn.Dropout(classifier_dropout)
+        self.classifier = nn.Linear(config.hidden_size, config.num_labels)
+
+        self.init_weights()
+
+    @add_start_docstrings_to_model_forward(MOCOBERT_INPUTS_DOCSTRING.format("batch_size, sequence_length"))
+    @add_code_sample_docstrings(
+        tokenizer_class=_TOKENIZER_FOR_DOC,
+        checkpoint=_CHECKPOINT_FOR_DOC,
+        output_type=SequenceClassifierOutput,
+        config_class=_CONFIG_FOR_DOC,
+    )
+    def forward(
+        self,
+        input_ids=None,
+        attention_mask=None,
+        token_type_ids=None,
+        position_ids=None,
+        head_mask=None,
+        inputs_embeds=None,
+        labels=None,
+        output_attentions=None,
+        output_hidden_states=None,
+        return_dict=None,
+    ):
+        r"""
+        labels (:obj:`torch.LongTensor` of shape :obj:`(batch_size,)`, `optional`):
+            Labels for computing the sequence classification/regression loss. Indices should be in :obj:`[0, ...,
+            config.num_labels - 1]`. If :obj:`config.num_labels == 1` a regression loss is computed (Mean-Square loss),
+            If :obj:`config.num_labels > 1` a classification loss is computed (Cross-Entropy).
+        """
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
+
+        outputs = self.bert(
+            input_ids,
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
+            position_ids=position_ids,
+            head_mask=head_mask,
+            inputs_embeds=inputs_embeds,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
+        )
+
+        pooled_output = outputs[1]
+
+        pooled_output = self.dropout(pooled_output)
+        logits = self.classifier(pooled_output)
+
+        loss = None
+        if labels is not None:
+            if self.config.problem_type is None:
+                if self.num_labels == 1:
+                    self.config.problem_type = "regression"
+                elif self.num_labels > 1 and (labels.dtype == torch.long or labels.dtype == torch.int):
+                    self.config.problem_type = "single_label_classification"
+                else:
+                    self.config.problem_type = "multi_label_classification"
+
+            if self.config.problem_type == "regression":
+                loss_fct = MSELoss()
+                if self.num_labels == 1:
+                    loss = loss_fct(logits.squeeze(), labels.squeeze())
+                else:
+                    loss = loss_fct(logits, labels)
+            elif self.config.problem_type == "single_label_classification":
+                loss_fct = CrossEntropyLoss()
+                loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
+            elif self.config.problem_type == "multi_label_classification":
+                loss_fct = BCEWithLogitsLoss()
+                loss = loss_fct(logits, labels)
+        if not return_dict:
+            output = (logits,) + outputs[2:]
+            return ((loss,) + output) if loss is not None else output
+
+        return SequenceClassifierOutput(
+            loss=loss,
+            logits=logits,
+            hidden_states=outputs.hidden_states,
+            attentions=outputs.attentions,
+        )
+
+
+@add_start_docstrings(
+    """
+    MoCoBert Model with a dual encoder head on top for passage retrieval tasks (a linear layer on top of the pooled output
     for computing source-target similarity).
     """,
     MOCOBERT_START_DOCSTRING,
@@ -469,26 +570,25 @@ class MoCoBertForDualPassageEncoder(MoCoBertPreTrainedModel):
         self.bert = MoCoBertModel(config)
         self.pooler = MoCoBertPooler(config)
 
-        self.bert_mo = MoCoBertModel(config)
-        self.pooler_mo = MoCoBertPooler(config)
+        self.mo_bert = MoCoBertModel(config)
+        self.mo_pooler = MoCoBertPooler(config)
 
         self.register_buffer("memory_ptr", torch.zeros(1, dtype=torch.long))
-        self.register_buffer("memory_embeds", torch.randn(config.hidden_size, self.memory_size))
+        self.register_buffer("memory_embeds", torch.normal(0.0, config.initializer_range, size=(config.hidden_size, self.memory_size)))
         self.register_buffer("memory_labels", -torch.ones(self.memory_size, dtype=torch.long))
-        self.memory_embeds = F.normalize(self.memory_embeds, dim=0)
 
         self.init_weights()
         self._copy_weights()
 
     def _copy_weights(self):
-        for q_module, k_module in [(self.bert, self.bert_mo), (self.pooler, self.pooler_mo)]:
+        for q_module, k_module in [(self.bert, self.mo_bert), (self.pooler, self.mo_pooler)]:
             for q_param, k_param in zip(q_module.parameters(), k_module.parameters()):
                 k_param.data.copy_(q_param.data)
                 k_param.requires_grad = False
 
     @torch.no_grad()
     def _update_momentum_encoder(self):
-        for q_module, k_module in [(self.bert, self.bert_mo), (self.pooler, self.pooler_mo)]:
+        for q_module, k_module in [(self.bert, self.mo_bert), (self.pooler, self.mo_pooler)]:
             for q_param, k_param in zip(q_module.parameters(), k_module.parameters()):
                 k_param.data = k_param.data * self.momentum + q_param.data * (1.0 - self.momentum)
 
@@ -600,7 +700,7 @@ class MoCoBertForDualPassageEncoder(MoCoBertPreTrainedModel):
         with torch.no_grad():
             self._update_momentum_encoder()
 
-            trg_outputs = self.bert_mo(
+            trg_outputs = self.mo_bert(
                 trg_input_ids,
                 attention_mask=trg_attention_mask,
                 token_type_ids=trg_token_type_ids,
@@ -612,7 +712,7 @@ class MoCoBertForDualPassageEncoder(MoCoBertPreTrainedModel):
                 return_dict=return_dict,
             )
 
-            trg_pooled_output = self.pooler_mo(trg_outputs[0])
+            trg_pooled_output = self.mo_pooler(trg_outputs[0])
 
         mask = self._get_memory_mask(labels)
         pos_logits = torch.einsum('ik,ik->i', src_pooled_output, trg_pooled_output).unsqueeze(-1)
