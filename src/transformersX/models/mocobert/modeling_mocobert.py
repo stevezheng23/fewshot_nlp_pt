@@ -175,6 +175,29 @@ class MoCoBertPooler(nn.Module):
         return x
 
 
+class MoCoBertClassificationHead(nn.Module):
+    """Head for sentence-level classification tasks."""
+
+    def __init__(self, config):
+        super().__init__()
+        self.dense = nn.Linear(config.hidden_size, config.hidden_size)
+        classifier_dropout = (
+            config.classifier_dropout if config.classifier_dropout is not None else config.hidden_dropout_prob
+        )
+        self.dropout = nn.Dropout(classifier_dropout)
+        self.out_proj = nn.Linear(config.hidden_size, config.num_labels)
+        self.activation = nn.Tanh()
+
+    def forward(self, features, **kwargs):
+        x = features[:, 0, :]  # take [CLS] token
+        x = self.dropout(x)
+        x = self.dense(x)
+        x = self.activation(x)
+        x = self.dropout(x)
+        x = self.out_proj(x)
+        return x
+
+
 class MoCoBertPreTrainedModel(PreTrainedModel):
     """
     An abstract class to handle weights initialization and a simple interface for downloading and loading pretrained
@@ -463,16 +486,78 @@ class MoCoBertForSequenceClassification(MoCoBertPreTrainedModel):
     def __init__(self, config):
         super().__init__(config)
         self.num_labels = config.num_labels
+        self.cls_token_id = config.cls_token_id
+        self.sep_token_id = config.sep_token_id
+        self.mask_token_id = config.mask_token_id
+        self.masking_prob = config.moco_masking_prob
+        self.cls_loss_wgt = config.moco_cls_loss_wgt
+        self.cl_loss_wgt = config.moco_cl_loss_wgt
+        self.memory_size = config.moco_memory_size
+        self.momentum = config.moco_momentum
+        self.temperature = config.moco_temperature
         self.config = config
 
         self.bert = MoCoBertModel(config)
-        classifier_dropout = (
-            config.classifier_dropout if config.classifier_dropout is not None else config.hidden_dropout_prob
-        )
-        self.dropout = nn.Dropout(classifier_dropout)
-        self.classifier = nn.Linear(config.hidden_size, config.num_labels)
+        self.pooler = MoCoBertPooler(config)
+
+        self.mo_bert = MoCoBertModel(config)
+        self.mo_pooler = MoCoBertPooler(config)
+
+        self.classifier = MoCoBertClassificationHead(config)
+
+        self.register_buffer("memory_ptr", torch.zeros(1, dtype=torch.long))
+        self.register_buffer("memory_embeds", torch.normal(0.0, config.initializer_range, size=(config.hidden_size, self.memory_size)))
+        self.register_buffer("memory_labels", -torch.ones(self.memory_size, dtype=torch.long))
 
         self.init_weights()
+        self._copy_weights()
+
+    def _apply_masking(self, inputs):
+        masked_inputs = inputs.clone()
+        valid_masking_indices = (inputs != self.cls_token_id) & (inputs != self.sep_token_id)
+        random_masking_indices = torch.bernoulli(torch.full(inputs.shape, self.masking_prob, device=inputs.device)).bool()
+        masking_indices = random_masking_indices & valid_masking_indices
+        masked_inputs[masking_indices] = self.mask_token_id
+        return masked_inputs
+
+    def _copy_weights(self):
+        for q_module, k_module in [(self.bert, self.mo_bert), (self.pooler, self.mo_pooler)]:
+            for q_param, k_param in zip(q_module.parameters(), k_module.parameters()):
+                k_param.data.copy_(q_param.data)
+                k_param.requires_grad = False
+
+    @torch.no_grad()
+    def _update_momentum_encoder(self):
+        for q_module, k_module in [(self.bert, self.mo_bert), (self.pooler, self.mo_pooler)]:
+            for q_param, k_param in zip(q_module.parameters(), k_module.parameters()):
+                k_param.data = k_param.data * self.momentum + q_param.data * (1.0 - self.momentum)
+
+    @torch.no_grad()
+    def _update_memory_bank(self, embeds, labels):
+        embeds = self._all_gather_and_concat(embeds)
+        labels = self._all_gather_and_concat(labels)
+        b, p = embeds.size(0), int(self.memory_ptr)
+        if self.memory_size % b != 0:
+            return
+        if (self.memory_size-p) % b != 0:
+            p -= (self.memory_size-p) % b
+        self.memory_embeds[:,p:p+b] = embeds.T
+        self.memory_labels[p:p+b] = labels
+        self.memory_ptr[0] = (p + b) % self.memory_size
+
+    @torch.no_grad()
+    def _get_memory_mask(self, labels):
+        labels = labels.unsqueeze(-1).expand(-1, self.memory_size)
+        memory_labels = self.memory_labels.clone().detach().unsqueeze(0).expand(labels.size(0), -1)
+        return (labels == memory_labels)
+
+    @torch.no_grad()
+    def _all_gather_and_concat(self, t):
+        if not torch.distributed.is_initialized():
+            return t
+        t_gather = [torch.zeros_like(t) for _ in range(torch.distributed.get_world_size())]
+        torch.distributed.all_gather(t_gather, t, async_op=False)
+        return torch.cat(t_gather, dim=0)
 
     @add_start_docstrings_to_model_forward(MOCOBERT_INPUTS_DOCSTRING.format("batch_size, sequence_length"))
     @add_code_sample_docstrings(
@@ -515,41 +600,74 @@ class MoCoBertForSequenceClassification(MoCoBertPreTrainedModel):
         )
 
         pooled_output = outputs[1]
-
-        pooled_output = self.dropout(pooled_output)
         logits = self.classifier(pooled_output)
 
-        loss = None
-        if labels is not None:
-            if self.config.problem_type is None:
-                if self.num_labels == 1:
-                    self.config.problem_type = "regression"
-                elif self.num_labels > 1 and (labels.dtype == torch.long or labels.dtype == torch.int):
-                    self.config.problem_type = "single_label_classification"
-                else:
-                    self.config.problem_type = "multi_label_classification"
+        if labels is None:
+            if not return_dict:
+                return (logits,) + outputs[2:]
 
-            if self.config.problem_type == "regression":
-                loss_fct = MSELoss()
-                if self.num_labels == 1:
-                    loss = loss_fct(logits.squeeze(), labels.squeeze())
-                else:
-                    loss = loss_fct(logits, labels)
-            elif self.config.problem_type == "single_label_classification":
-                loss_fct = CrossEntropyLoss()
-                loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
-            elif self.config.problem_type == "multi_label_classification":
-                loss_fct = BCEWithLogitsLoss()
-                loss = loss_fct(logits, labels)
+            return SequenceClassifierOutput(
+                logits=logits,
+                hidden_states=outputs.hidden_states,
+                attentions=outputs.attentions,
+            )
+
+        b, l = input_ids.size()
+        src_input_ids, trg_input_ids = self._apply_masking(input_ids.clone()), self._apply_masking(input_ids.clone())
+        src_attention_mask, trg_attention_mask = attention_mask.clone(), attention_mask.clone() if attention_mask is not None else (None, None)
+        src_token_type_ids, trg_token_type_ids = token_type_ids.clone(), token_type_ids.clone() if token_type_ids is not None else (None, None)
+        src_position_ids, trg_position_ids = position_ids.clone(), position_ids.clone() if position_ids is not None else (None, None)
+        src_inputs_embeds, trg_inputs_embeds = inputs_embeds.clone(), inputs_embeds.clone() if inputs_embeds is not None else (None, None)
+
+        src_outputs = self.bert(
+            src_input_ids,
+            attention_mask=src_attention_mask,
+            token_type_ids=src_token_type_ids,
+            position_ids=src_position_ids,
+            head_mask=head_mask,
+            inputs_embeds=src_inputs_embeds,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
+        )
+
+        src_pooled_output = self.pooler(src_outputs[0])
+
+        with torch.no_grad():
+            self._update_momentum_encoder()
+
+            trg_outputs = self.mo_bert(
+                trg_input_ids,
+                attention_mask=trg_attention_mask,
+                token_type_ids=trg_token_type_ids,
+                position_ids=trg_position_ids,
+                head_mask=head_mask,
+                inputs_embeds=trg_inputs_embeds,
+                output_attentions=output_attentions,
+                output_hidden_states=output_hidden_states,
+                return_dict=return_dict,
+            )
+
+            trg_pooled_output = self.mo_pooler(trg_outputs[0])
+
+        mask = self._get_memory_mask(labels)
+        pos_logits = torch.einsum('ik,ik->i', src_pooled_output, trg_pooled_output).unsqueeze(-1)
+        neg_logits = torch.einsum('ik,kj->ij', src_pooled_output, self.memory_embeds.clone().detach()).masked_fill(mask, float('-inf'))
+        cl_logits = torch.cat([pos_logits, neg_logits], dim=-1) / self.temperature
+        cl_labels = torch.zeros(b, dtype=torch.long).to(labels.device)
+        self._update_memory_bank(trg_pooled_output, labels)
+        
+        loss_fct = CrossEntropyLoss()
+        cls_loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
+        cl_loss = loss_fct(cl_logits.view(-1, self.memory_size+1), cl_labels.view(-1))
+        loss = cls_loss * self.cls_loss_wgt + cl_loss * self.cl_loss_wgt
+
         if not return_dict:
-            output = (logits,) + outputs[2:]
-            return ((loss,) + output) if loss is not None else output
+            return (loss, logits)
 
         return SequenceClassifierOutput(
             loss=loss,
             logits=logits,
-            hidden_states=outputs.hidden_states,
-            attentions=outputs.attentions,
         )
 
 
