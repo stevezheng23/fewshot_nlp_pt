@@ -681,6 +681,7 @@ class MoCoBertForSequenceClassification(MoCoBertPreTrainedModel):
 class MoCoBertForDualPassageEncoder(MoCoBertPreTrainedModel):
     def __init__(self, config):
         super().__init__(config)
+        self.momentum_loss_wgt = config.moco_cl_loss_wgt
         self.memory_size = config.moco_memory_size
         self.momentum = config.moco_momentum
         self.temperature = config.moco_temperature
@@ -789,34 +790,40 @@ class MoCoBertForDualPassageEncoder(MoCoBertPreTrainedModel):
             )
 
         b, _, l = input_ids.size()
-        src_input_ids, trg_input_ids = input_ids.chunk(2, dim=1)
-        src_attention_mask, trg_attention_mask = attention_mask.chunk(2, dim=1) if attention_mask is not None else (None, None)
-        src_token_type_ids, trg_token_type_ids = token_type_ids.chunk(2, dim=1) if token_type_ids is not None else (None, None)
-        src_position_ids, trg_position_ids = position_ids.chunk(2, dim=1) if position_ids is not None else (None, None)
-        src_inputs_embeds, trg_inputs_embeds = inputs_embeds.chunk(2, dim=1) if inputs_embeds is not None else (None, None)
+        flatten_input_ids = input_ids.reshape(-1, l)
+        flatten_attention_mask = attention_mask.reshape(-1, l) if attention_mask is not None else None
+        flatten_token_type_ids = token_type_ids.reshape(-1, l) if token_type_ids is not None else None
+        flatten_position_ids = position_ids.reshape(-1, l) if position_ids is not None else None
+        flatten_inputs_embeds = inputs_embeds.reshape(-1, l, self.config.hidden_size) if inputs_embeds is not None else None
 
-        src_input_ids, trg_input_ids = src_input_ids.squeeze(dim=1), trg_input_ids.squeeze(dim=1)
-        src_attention_mask, trg_attention_mask = (src_attention_mask.squeeze(1), trg_attention_mask.squeeze(1)) if attention_mask is not None else (None, None)
-        src_token_type_ids, trg_token_type_ids = (src_token_type_ids.squeeze(1), trg_token_type_ids.squeeze(1)) if token_type_ids is not None else (None, None)
-        src_position_ids, trg_position_ids = (src_position_ids.squeeze(1), trg_position_ids.squeeze(1)) if position_ids is not None else (None, None)
-        src_inputs_embeds, trg_inputs_embeds = (src_inputs_embeds.squeeze(1), trg_inputs_embeds.squeeze(1)) if inputs_embeds is not None else (None, None)
-
-        src_outputs = self.bert(
-            src_input_ids,
-            attention_mask=src_attention_mask,
-            token_type_ids=src_token_type_ids,
-            position_ids=src_position_ids,
+        flatten_outputs = self.bert(
+            flatten_input_ids,
+            attention_mask=flatten_attention_mask,
+            token_type_ids=flatten_token_type_ids,
+            position_ids=flatten_position_ids,
             head_mask=head_mask,
-            inputs_embeds=src_inputs_embeds,
+            inputs_embeds=flatten_inputs_embeds,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
         )
 
-        src_pooled_output = self.pooler(src_outputs[0])
+        flatten_pooled_output = self.pooler(flatten_outputs[0])
+        src_pooled_output, trg_pooled_output = flatten_pooled_output.reshape(b, 2, self.config.hidden_size).chunk(2, dim=1)
+        src_pooled_output, trg_pooled_output = src_pooled_output.squeeze(dim=1).contiguous(), trg_pooled_output.squeeze(dim=1).contiguous()
+
+        mask = (labels.unsqueeze(-1).expand(-1, b) == labels.unsqueeze(0).expand(b, -1)) & (1 - torch.eye(b)).to(labels.device).bool()
+        cl_logits = torch.einsum('ik,jk->ij', src_pooled_output, trg_pooled_output).masked_fill(mask, float('-inf'))
+        cl_labels = torch.arange(b).to(labels.device)
 
         with torch.no_grad():
             self._update_momentum_encoder()
+
+            trg_input_ids = input_ids[:, 0]
+            trg_attention_mask = attention_mask[:, 0] if attention_mask is not None else None
+            trg_token_type_ids = token_type_ids[:, 0] if token_type_ids is not None else None
+            trg_position_ids = position_ids[:, 0] if position_ids is not None else None
+            trg_inputs_embeds = inputs_embeds[:, 0] if inputs_embeds is not None else None
 
             trg_outputs = self.mo_bert(
                 trg_input_ids,
@@ -835,17 +842,19 @@ class MoCoBertForDualPassageEncoder(MoCoBertPreTrainedModel):
         mask = self._get_memory_mask(labels)
         pos_logits = torch.einsum('ik,ik->i', src_pooled_output, trg_pooled_output).unsqueeze(-1)
         neg_logits = torch.einsum('ik,kj->ij', src_pooled_output, self.memory_embeds.clone().detach()).masked_fill(mask, float('-inf'))
-        logits = torch.cat([pos_logits, neg_logits], dim=-1) / self.temperature
+        mo_logits = torch.cat([pos_logits, neg_logits], dim=-1) / self.temperature
+        mo_labels = torch.zeros(b, dtype=torch.long).to(labels.device)
         self._update_memory_bank(trg_pooled_output, labels)
-        labels = torch.zeros(b, dtype=torch.long).to(labels.device)
         
         loss_fct = CrossEntropyLoss()
-        loss = loss_fct(logits.view(-1, self.memory_size+1), labels.view(-1))
+        cl_loss = loss_fct(cl_logits.view(-1, b), cl_labels.view(-1))
+        mo_loss = loss_fct(mo_logits.view(-1, self.memory_size+1), mo_labels.view(-1))
+        loss = cl_loss + mo_loss * self.momentum_loss_wgt
 
         if not return_dict:
-            return (loss, logits,)
+            return (loss, cl_logits,)
 
         return DualPassageEncoderModelOutput(
             loss=loss,
-            logits=logits,
+            logits=cl_logits,
         )
