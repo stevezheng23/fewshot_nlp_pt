@@ -605,7 +605,7 @@ class MoCoBertForSequenceClassification(MoCoBertPreTrainedModel):
             return_dict=return_dict,
         )
 
-        pooled_output = outputs[1]
+        pooled_output = outputs[0]
         logits = self.classifier(pooled_output)
 
         if labels is None:
@@ -620,10 +620,10 @@ class MoCoBertForSequenceClassification(MoCoBertPreTrainedModel):
 
         b, l = input_ids.size()
         src_input_ids, trg_input_ids = self._apply_masking(input_ids.clone()), self._apply_masking(input_ids.clone())
-        src_attention_mask, trg_attention_mask = attention_mask.clone(), attention_mask.clone() if attention_mask is not None else (None, None)
-        src_token_type_ids, trg_token_type_ids = token_type_ids.clone(), token_type_ids.clone() if token_type_ids is not None else (None, None)
-        src_position_ids, trg_position_ids = position_ids.clone(), position_ids.clone() if position_ids is not None else (None, None)
-        src_inputs_embeds, trg_inputs_embeds = inputs_embeds.clone(), inputs_embeds.clone() if inputs_embeds is not None else (None, None)
+        src_attention_mask, trg_attention_mask = (attention_mask.clone(), attention_mask.clone()) if attention_mask is not None else (None, None)
+        src_token_type_ids, trg_token_type_ids = (token_type_ids.clone(), token_type_ids.clone()) if token_type_ids is not None else (None, None)
+        src_position_ids, trg_position_ids = (position_ids.clone(), position_ids.clone()) if position_ids is not None else (None, None)
+        src_inputs_embeds, trg_inputs_embeds = (inputs_embeds.clone(), inputs_embeds.clone()) if inputs_embeds is not None else (None, None)
 
         src_outputs = self.bert(
             src_input_ids,
@@ -687,7 +687,8 @@ class MoCoBertForSequenceClassification(MoCoBertPreTrainedModel):
 class MoCoBertForDualPassageEncoder(MoCoBertPreTrainedModel):
     def __init__(self, config):
         super().__init__(config)
-        self.momentum_loss_wgt = config.moco_cl_loss_wgt
+        self.cl_loss_wgt = config.moco_cl_loss_wgt
+        self.mo_loss_wgt = config.moco_mo_loss_wgt
         self.memory_size = config.moco_memory_size
         self.momentum = config.moco_momentum
         self.temperature = config.moco_temperature
