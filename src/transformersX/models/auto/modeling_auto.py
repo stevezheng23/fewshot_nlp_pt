@@ -221,7 +221,7 @@ from ..mobilebert.modeling_mobilebert import (
     MobileBertForTokenClassification,
     MobileBertModel,
 )
-from ..mocobert.modeling_mocobert import MoCoBertForDualPassageEncoder, MoCoBertModel
+from ..mocobert.modeling_mocobert import MoCoBertForSequenceClassification, MoCoBertForDualPassageEncoder, MoCoBertModel
 from ..mpnet.modeling_mpnet import (
     MPNetForMaskedLM,
     MPNetForMultipleChoice,
@@ -718,6 +718,7 @@ MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING = OrderedDict(
         (MixupBertConfig, MixupBertForSequenceClassification),
         (AdapterBertConfig, AdapterBertForSequenceClassification),
         (LoraBertConfig, LoraBertForSequenceClassification),
+        (MoCoBertConfig, MoCoBertForSequenceClassification),
         (IBertConfig, IBertForSequenceClassification),
     ]
 )
