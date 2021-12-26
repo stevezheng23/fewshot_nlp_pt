@@ -129,6 +129,7 @@ class MoCoBertConfig(PretrainedConfig):
         moco_masking_prob=0.1,
         moco_cls_loss_wgt=1.0,
         moco_cl_loss_wgt=1.0,
+        moco_mo_loss_wgt=1.0,
         moco_memory_size=65536,
         moco_momentum=0.999,
         moco_temperature=1.0,
@@ -159,6 +160,7 @@ class MoCoBertConfig(PretrainedConfig):
         self.moco_masking_prob = moco_masking_prob
         self.moco_cls_loss_wgt = moco_cls_loss_wgt
         self.moco_cl_loss_wgt = moco_cl_loss_wgt
+        self.moco_mo_loss_wgt = moco_mo_loss_wgt
         self.moco_memory_size = moco_memory_size
         self.moco_momentum = moco_momentum
         self.moco_temperature = moco_temperature

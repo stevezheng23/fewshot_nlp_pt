@@ -491,7 +491,7 @@ class MoCoBertForSequenceClassification(MoCoBertPreTrainedModel):
         self.mask_token_id = config.mask_token_id
         self.masking_prob = config.moco_masking_prob
         self.cls_loss_wgt = config.moco_cls_loss_wgt
-        self.cl_loss_wgt = config.moco_cl_loss_wgt
+        self.mo_loss_wgt = config.moco_mo_loss_wgt
         self.memory_size = config.moco_memory_size
         self.momentum = config.moco_momentum
         self.temperature = config.moco_temperature
@@ -653,14 +653,14 @@ class MoCoBertForSequenceClassification(MoCoBertPreTrainedModel):
         mask = self._get_memory_mask(labels)
         pos_logits = torch.einsum('ik,ik->i', src_pooled_output, trg_pooled_output).unsqueeze(-1)
         neg_logits = torch.einsum('ik,kj->ij', src_pooled_output, self.memory_embeds.clone().detach()).masked_fill(mask, float('-inf'))
-        cl_logits = torch.cat([pos_logits, neg_logits], dim=-1) / self.temperature
-        cl_labels = torch.zeros(b, dtype=torch.long).to(labels.device)
+        mo_logits = torch.cat([pos_logits, neg_logits], dim=-1) / self.temperature
+        mo_labels = torch.zeros(b, dtype=torch.long).to(labels.device)
         self._update_memory_bank(trg_pooled_output, labels)
         
         loss_fct = CrossEntropyLoss()
         cls_loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
-        cl_loss = loss_fct(cl_logits.view(-1, self.memory_size+1), cl_labels.view(-1))
-        loss = cls_loss * self.cls_loss_wgt + cl_loss * self.cl_loss_wgt
+        mo_loss = loss_fct(mo_logits.view(-1, self.memory_size+1), mo_labels.view(-1))
+        loss = cls_loss * self.cls_loss_wgt + mo_loss * self.mo_loss_wgt
 
         if not return_dict:
             return (loss, logits)
@@ -849,7 +849,7 @@ class MoCoBertForDualPassageEncoder(MoCoBertPreTrainedModel):
         loss_fct = CrossEntropyLoss()
         cl_loss = loss_fct(cl_logits.view(-1, b), cl_labels.view(-1))
         mo_loss = loss_fct(mo_logits.view(-1, self.memory_size+1), mo_labels.view(-1))
-        loss = cl_loss + mo_loss * self.momentum_loss_wgt
+        loss = cl_loss * self.cl_loss_wgt + mo_loss * self.mo_loss_wgt
 
         if not return_dict:
             return (loss, cl_logits,)
