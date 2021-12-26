@@ -819,11 +819,11 @@ class MoCoBertForDualPassageEncoder(MoCoBertPreTrainedModel):
         with torch.no_grad():
             self._update_momentum_encoder()
 
-            trg_input_ids = input_ids[:, 0]
-            trg_attention_mask = attention_mask[:, 0] if attention_mask is not None else None
-            trg_token_type_ids = token_type_ids[:, 0] if token_type_ids is not None else None
-            trg_position_ids = position_ids[:, 0] if position_ids is not None else None
-            trg_inputs_embeds = inputs_embeds[:, 0] if inputs_embeds is not None else None
+            trg_input_ids = input_ids[:, 1]
+            trg_attention_mask = attention_mask[:, 1] if attention_mask is not None else None
+            trg_token_type_ids = token_type_ids[:, 1] if token_type_ids is not None else None
+            trg_position_ids = position_ids[:, 1] if position_ids is not None else None
+            trg_inputs_embeds = inputs_embeds[:, 1] if inputs_embeds is not None else None
 
             trg_outputs = self.mo_bert(
                 trg_input_ids,
