@@ -540,6 +540,8 @@ class MoCoBertForSequenceClassification(MoCoBertPreTrainedModel):
 
     @torch.no_grad()
     def _update_memory_bank(self, embeds, labels):
+        if not self.training:
+            return
         embeds = self._all_gather_and_concat(embeds)
         labels = self._all_gather_and_concat(labels)
         b, p = embeds.size(0), int(self.memory_ptr)
@@ -720,6 +722,8 @@ class MoCoBertForDualPassageEncoder(MoCoBertPreTrainedModel):
 
     @torch.no_grad()
     def _update_memory_bank(self, embeds, labels):
+        if not self.training:
+            return
         embeds = self._all_gather_and_concat(embeds)
         labels = self._all_gather_and_concat(labels)
         b, p = embeds.size(0), int(self.memory_ptr)
