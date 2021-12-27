@@ -161,18 +161,18 @@ class MoCoBertPooler(nn.Module):
         self.dense = nn.Linear(config.hidden_size, config.hidden_size)
         self.activation = nn.Tanh()
 
-    def forward(self, hidden_states, attention_mask=None):
+    def forward(self, hidden_states, pooling_mask=None):
         # We "pool" the model based on the pooler type (e.g., 'first', 'avg', 'max', etc.)
         # By default simply taking the hidden state corresponding to the first token.
         if self.pooler_type == "avg":
-            if attention_mask is not None:
-                hidden_states.masked_fill((1.0 - attention_mask).unsqueeze(-1), 0.0)
-                x = torch.sum(hidden_states, dim=1) / torch.count_nonzero(attention_mask, dim=-1).unsqueeze(-1)
+            if pooling_mask is not None:
+                hidden_states.masked_fill((1.0 - pooling_mask).bool().unsqueeze(-1), 0.0)
+                x = torch.sum(hidden_states, dim=1) / torch.count_nonzero(pooling_mask, dim=-1).unsqueeze(-1)
             else:
                 x = torch.mean(hidden_states, dim=1)
         elif self.pooler_type == "max":
-            if attention_mask is not None:
-                hidden_states.masked_fill((1.0 - attention_mask).unsqueeze(-1), float("-inf"))
+            if pooling_mask is not None:
+                hidden_states.masked_fill((1.0 - pooling_mask).bool().unsqueeze(-1), float("-inf"))
             x, _ = torch.max(hidden_states, dim=1)
         else:
             x = hidden_states[:, 0, :]
@@ -492,6 +492,7 @@ class MoCoBertForSequenceClassification(MoCoBertPreTrainedModel):
     def __init__(self, config):
         super().__init__(config)
         self.num_labels = config.num_labels
+        self.pad_token_id = config.pad_token_id
         self.cls_token_id = config.cls_token_id
         self.sep_token_id = config.sep_token_id
         self.mask_token_id = config.mask_token_id
@@ -525,6 +526,10 @@ class MoCoBertForSequenceClassification(MoCoBertPreTrainedModel):
         masking_indices = random_masking_indices & valid_masking_indices
         masked_inputs[masking_indices] = self.mask_token_id
         return masked_inputs
+
+    def _get_pooling_mask(self, inputs):
+        pooling_mask = (inputs != self.pad_token_id) & (inputs != self.cls_token_id) & (inputs != self.sep_token_id)
+        return pooling_mask.float()
 
     def _copy_weights(self):
         for q_module, k_module in [(self.bert, self.mo_bert), (self.pooler, self.mo_pooler)]:
@@ -639,7 +644,7 @@ class MoCoBertForSequenceClassification(MoCoBertPreTrainedModel):
             return_dict=return_dict,
         )
 
-        src_pooled_output = self.pooler(src_outputs[0], src_attention_mask)
+        src_pooled_output = self.pooler(src_outputs[0], self._get_pooling_mask(src_input_ids))
 
         with torch.no_grad():
             self._update_momentum_encoder()
@@ -656,7 +661,7 @@ class MoCoBertForSequenceClassification(MoCoBertPreTrainedModel):
                 return_dict=return_dict,
             )
 
-            trg_pooled_output = self.mo_pooler(trg_outputs[0], trg_attention_mask)
+            trg_pooled_output = self.mo_pooler(trg_outputs[0], self._get_pooling_mask(trg_input_ids))
 
         mask = self._get_memory_mask(labels)
         pos_logits = torch.einsum('ik,ik->i', src_pooled_output, trg_pooled_output).unsqueeze(-1)
@@ -689,6 +694,9 @@ class MoCoBertForSequenceClassification(MoCoBertPreTrainedModel):
 class MoCoBertForDualPassageEncoder(MoCoBertPreTrainedModel):
     def __init__(self, config):
         super().__init__(config)
+        self.pad_token_id = config.pad_token_id
+        self.cls_token_id = config.cls_token_id
+        self.sep_token_id = config.sep_token_id
         self.cl_loss_wgt = config.moco_cl_loss_wgt
         self.mo_loss_wgt = config.moco_mo_loss_wgt
         self.memory_size = config.moco_memory_size
@@ -707,6 +715,10 @@ class MoCoBertForDualPassageEncoder(MoCoBertPreTrainedModel):
 
         self.init_weights()
         self._copy_weights()
+
+    def _get_pooling_masking(self, inputs):
+        pooling_mask = (inputs != self.pad_token_id) & (inputs != self.cls_token_id) & (inputs != self.sep_token_id)
+        return pooling_mask.float()
 
     def _copy_weights(self):
         for q_module, k_module in [(self.bert, self.mo_bert), (self.pooler, self.mo_pooler)]:
@@ -789,7 +801,7 @@ class MoCoBertForDualPassageEncoder(MoCoBertPreTrainedModel):
                 return_dict=return_dict,
             )
 
-            pooled_output = self.pooler(outputs[0], attention_mask)
+            pooled_output = self.pooler(outputs[0], self._get_pooling_mask(input_ids))
 
             if not return_dict:
                 return (pooled_output,) + outputs[2:]
@@ -819,7 +831,7 @@ class MoCoBertForDualPassageEncoder(MoCoBertPreTrainedModel):
             return_dict=return_dict,
         )
 
-        flatten_pooled_output = self.pooler(flatten_outputs[0], flatten_attention_mask)
+        flatten_pooled_output = self.pooler(flatten_outputs[0], self._get_pooling_mask(flatten_input_ids))
         src_pooled_output, trg_pooled_output = flatten_pooled_output.reshape(b, 2, self.config.hidden_size).chunk(2, dim=1)
         src_pooled_output, trg_pooled_output = src_pooled_output.squeeze(dim=1).contiguous(), trg_pooled_output.squeeze(dim=1).contiguous()
 
@@ -848,7 +860,7 @@ class MoCoBertForDualPassageEncoder(MoCoBertPreTrainedModel):
                 return_dict=return_dict,
             )
 
-            trg_pooled_output = self.mo_pooler(trg_outputs[0], trg_attention_mask)
+            trg_pooled_output = self.mo_pooler(trg_outputs[0], self._get_pooling_mask(trg_input_ids))
 
         mask = self._get_memory_mask(labels)
         pos_logits = torch.einsum('ik,ik->i', src_pooled_output, trg_pooled_output).unsqueeze(-1)
