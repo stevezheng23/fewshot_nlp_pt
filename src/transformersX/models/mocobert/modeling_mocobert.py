@@ -716,7 +716,7 @@ class MoCoBertForDualPassageEncoder(MoCoBertPreTrainedModel):
         self.init_weights()
         self._copy_weights()
 
-    def _get_pooling_masking(self, inputs):
+    def _get_pooling_mask(self, inputs):
         pooling_mask = (inputs != self.pad_token_id) & (inputs != self.cls_token_id) & (inputs != self.sep_token_id)
         return pooling_mask.float()
 
