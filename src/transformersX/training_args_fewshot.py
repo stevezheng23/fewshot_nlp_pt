@@ -27,17 +27,17 @@ logger = logging.getLogger(__name__)
 class FewshotTrainingArguments(TrainingArguments):
     """
     Parameters:
-        knn_top_k (:obj:`int`, `optional`, defaults to 1):
-            The initial learning rate for :class:`~transformers.AdamW` optimizer.
-        knn_threshold (:obj:`float`, `optional`, defaults to `-inf`):
-            The initial learning rate for :class:`~transformers.AdamW` optimizer.
+        predict_strategy (:obj:`str`, `optional`, defaults to `max`):
+            The predict strategy for fewshot training (e.g., `max`, `knn`, etc.).
+        top_k (:obj:`int`, `optional`, defaults to 1):
+            Use top K neighbors to predict label for test example.
     """
 
-    knn_top_k: int = field(
+    predict_strategy: str = field(
+        default="max",
+        metadata={"help": "The predict strategy for fewshot training (e.g., `max`, `knn`, etc.)."},
+    )    
+    top_k: int = field(
         default=1,
-        metadata={"help": "If >=0, uses the corresponding part of the output as the past state for next step."},
-    )
-    knn_threshold: float = field(
-        default=float("-inf"),
-        metadata={"help": "The label smoothing epsilon to apply (zero means no label smoothing)."}
+        metadata={"help": "Use top K neighbors to predict label for test example."},
     )

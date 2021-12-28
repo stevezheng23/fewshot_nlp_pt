@@ -28,6 +28,7 @@ import datasets
 from datasets import load_dataset, load_metric, DatasetDict
 
 import numpy as np
+from sklearn.neighbors import KNeighborsClassifier
 
 import transformersX
 from transformersX import (
@@ -335,13 +336,18 @@ def main():
     def compute_predicts(p: FewshotPrediction):
         support_preds = p.support_preds[0] if isinstance(p.support_preds, tuple) else p.support_preds
         eval_preds = p.eval_preds[0] if isinstance(p.eval_preds, tuple) else p.eval_preds
-
-        scores = np.einsum('ik,jk->ij', eval_preds, support_preds)
-        indices = np.argmax(scores, axis=-1)[...,None]
-        preds = p.support_labels[None,...].repeat(indices.shape[0], axis=0)
-        preds = np.take_along_axis(preds, indices, axis=-1)
-        preds = np.squeeze(preds, axis=-1)
-
+        if training_args.predict_strategy == "knn":
+            knn = KNeighborsClassifier(n_neighbors=training_args.top_k,
+                                       metric=(lambda x, y: -np.dot(x, y.T)),
+                                       algorithm="brute")
+            knn.fit(support_preds, p.support_labels)
+            preds = knn.predict(eval_preds)
+        else:
+            scores = np.einsum('ik,jk->ij', eval_preds, support_preds)
+            indices = np.argmax(scores, axis=-1)[...,None]
+            preds = p.support_labels[None,...].repeat(indices.shape[0], axis=0)
+            preds = np.take_along_axis(preds, indices, axis=-1)
+            preds = np.squeeze(preds, axis=-1)
         return EvalPrediction(predictions=preds, label_ids=p.eval_labels)
 
     # You can define your custom compute_metrics function. It takes an `EvalPrediction` object (a namedtuple with a

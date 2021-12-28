@@ -308,6 +308,7 @@ _import_structure = {
     "trainer_utils": ["EvalPrediction", "IntervalStrategy", "SchedulerType", "set_seed"],
     "training_args": ["TrainingArguments"],
     "training_args_seq2seq": ["Seq2SeqTrainingArguments"],
+    "training_args_fewshot": ["FewshotTrainingArguments"],
     "training_args_tf": ["TFTrainingArguments"],
     "utils": ["logging"],
 }
