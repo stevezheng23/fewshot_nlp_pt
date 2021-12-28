@@ -2049,6 +2049,7 @@ if TYPE_CHECKING:
     from .trainer_utils import EvalPrediction, IntervalStrategy, SchedulerType, set_seed
     from .training_args import TrainingArguments
     from .training_args_seq2seq import Seq2SeqTrainingArguments
+    from .training_args_fewshot import FewshotTrainingArguments
     from .training_args_tf import TFTrainingArguments
     from .utils import logging
 
