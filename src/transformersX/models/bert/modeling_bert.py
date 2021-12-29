@@ -1870,10 +1870,9 @@ class BertForQuestionAnswering(BertPreTrainedModel):
     BERT_START_DOCSTRING,
 )
 class BertForDualPassageEncoder(BertPreTrainedModel):
-    def __init__(self, config, cl_loss_type="bce", cls_loss_wgt=None):
+    def __init__(self, config, cls_loss_wgt=None):
         super().__init__(config)
         self.num_labels = config.num_labels
-        self.cl_loss_type = cl_loss_type
         self.cls_loss_wgt = cls_loss_wgt
 
         self.bert = BertModel(config)
@@ -1959,21 +1958,12 @@ class BertForDualPassageEncoder(BertPreTrainedModel):
         src_pooled_output, trg_pooled_output = flatten_pooled_output.reshape(b, 2, self.config.hidden_size).chunk(2, dim=1)
         src_pooled_output, trg_pooled_output = src_pooled_output.squeeze(dim=1).contiguous(), trg_pooled_output.squeeze(dim=1).contiguous()
 
-        if self.cl_loss_type is not None and self.cl_loss_type == "bce":
-            print("BCE")
-            cl_logits = torch.einsum('ik,jk->ij', src_pooled_output, trg_pooled_output)
-            cl_labels = (labels.unsqueeze(-1).expand(-1, b) == labels.unsqueeze(0).expand(b, -1)).float()
-            
-            loss_fct = BCEWithLogitsLoss()
-            cl_loss = loss_fct(cl_logits, cl_labels)
-        else:
-            print("CE")
-            mask = (labels.unsqueeze(-1).expand(-1, b) == labels.unsqueeze(0).expand(b, -1)) & (1 - torch.eye(b)).to(labels.device).bool()
-            cl_logits = torch.einsum('ik,jk->ij', src_pooled_output, trg_pooled_output).masked_fill(mask, float('-inf'))
-            cl_labels = torch.arange(b).to(labels.device)
-            
-            loss_fct = CrossEntropyLoss()
-            cl_loss = loss_fct(cl_logits.view(-1, labels.size(0)), cl_labels.view(-1))
+        mask = (labels.unsqueeze(-1).expand(-1, b) == labels.unsqueeze(0).expand(b, -1)) & (1 - torch.eye(b)).to(labels.device).bool()
+        cl_logits = torch.einsum('ik,jk->ij', src_pooled_output, trg_pooled_output).masked_fill(mask, float('-inf'))
+        cl_labels = torch.arange(b).to(labels.device)
+        
+        loss_fct = CrossEntropyLoss()
+        cl_loss = loss_fct(cl_logits.view(-1, labels.size(0)), cl_labels.view(-1))
 
         if self.cls_loss_wgt is not None and self.cls_loss_wgt > 0.0:
             flatten_logits = self.classifier(self.dropout(flatten_outputs[1]))
