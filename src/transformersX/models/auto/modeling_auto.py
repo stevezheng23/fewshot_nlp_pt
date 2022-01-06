@@ -264,6 +264,7 @@ from ..roberta.modeling_roberta import (
     RobertaForQuestionAnswering,
     RobertaForSequenceClassification,
     RobertaForTokenClassification,
+    RobertaForDualPassageEncoder,
     RobertaModel,
 )
 from ..roformer.modeling_roformer import (
@@ -601,6 +602,7 @@ MODEL_FOR_DUAL_PASSAGE_ENCODER_MAPPING = OrderedDict(
         # Model for Dual Passage Encoder mapping
         (BertConfig, BertForDualPassageEncoder),
         (MoCoBertConfig, MoCoBertForDualPassageEncoder),
+        (RobertaConfig, RobertaForDualPassageEncoder),
     ]
 )
 

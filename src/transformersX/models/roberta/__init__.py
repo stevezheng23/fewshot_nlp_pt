@@ -38,6 +38,7 @@ if is_torch_available():
         "RobertaForQuestionAnswering",
         "RobertaForSequenceClassification",
         "RobertaForTokenClassification",
+        "RobertaForDualPassageEncoder",
         "RobertaModel",
         "RobertaPreTrainedModel",
     ]
@@ -83,6 +84,7 @@ if TYPE_CHECKING:
             RobertaForQuestionAnswering,
             RobertaForSequenceClassification,
             RobertaForTokenClassification,
+            RobertaForDualPassageEncoder,
             RobertaModel,
             RobertaPreTrainedModel,
         )
