@@ -39,6 +39,7 @@ from ...modeling_outputs import (
     QuestionAnsweringModelOutput,
     SequenceClassifierOutput,
     TokenClassifierOutput,
+    DualPassageEncoderModelOutput,
 )
 from ...modeling_utils import (
     PreTrainedModel,
@@ -1545,6 +1546,132 @@ class RobertaForQuestionAnswering(RobertaPreTrainedModel):
             end_logits=end_logits,
             hidden_states=outputs.hidden_states,
             attentions=outputs.attentions,
+        )
+
+
+@add_start_docstrings(
+    """
+    Bert Model with a dual encoder head on top for passage retrieval tasks (a linear layer on top of the pooled output
+    for computing source-target similarity).
+    """,
+    ROBERTA_INPUTS_DOCSTRING,
+)
+class RobertaForDualPassageEncoder(RobertaPreTrainedModel):
+    def __init__(self, config, cls_loss_wgt=None):
+        super().__init__(config)
+        self.num_labels = config.num_labels
+        self.cls_loss_wgt = cls_loss_wgt
+
+        self.roberta = RobertaModel(config, add_pooling_layer=False)
+        self.pooler = RobertaPooler(config)
+        self.dropout = nn.Dropout(config.hidden_dropout_prob)
+        if self.cls_loss_wgt is not None and cls_loss_wgt > 0.0:
+            self.classifier = nn.Linear(config.hidden_size, config.num_labels)
+
+        self.init_weights()
+
+    @add_start_docstrings_to_model_forward(ROBERTA_INPUTS_DOCSTRING.format("batch_size, 2, sequence_length"))
+    @add_code_sample_docstrings(
+        tokenizer_class=_TOKENIZER_FOR_DOC,
+        checkpoint=_CHECKPOINT_FOR_DOC,
+        output_type=DualPassageEncoderModelOutput,
+        config_class=_CONFIG_FOR_DOC,
+    )
+    def forward(
+        self,
+        input_ids=None,
+        attention_mask=None,
+        token_type_ids=None,
+        position_ids=None,
+        head_mask=None,
+        inputs_embeds=None,
+        labels=None,
+        output_attentions=None,
+        output_hidden_states=None,
+        return_dict=None,
+    ):
+        r"""
+        labels (:obj:`torch.LongTensor` of shape :obj:`(batch_size,)`, `optional`):
+            Labels for computing the sequence classification/regression loss. Indices should be in :obj:`[0, ...,
+            config.num_labels - 1]`.
+        """
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
+
+        if labels is None or len(input_ids.size()) < 3:
+            outputs = self.roberta(
+                input_ids,
+                attention_mask=attention_mask,
+                token_type_ids=token_type_ids,
+                position_ids=position_ids,
+                head_mask=head_mask,
+                inputs_embeds=inputs_embeds,
+                output_attentions=output_attentions,
+                output_hidden_states=output_hidden_states,
+                return_dict=return_dict,
+            )
+
+            pooled_output = self.pooler(outputs[0])
+            pooled_output = self.dropout(pooled_output)
+
+            if not return_dict:
+                return (pooled_output,) + outputs[2:]
+
+            return DualPassageEncoderModelOutput(
+                pooled_output=pooled_output,
+                hidden_states=outputs.hidden_states,
+                attentions=outputs.attentions,
+            )
+
+        b, _, l = input_ids.size()
+        flatten_input_ids = input_ids.reshape(-1, l)
+        flatten_attention_mask = attention_mask.reshape(-1, l) if attention_mask is not None else None
+        flatten_token_type_ids = token_type_ids.reshape(-1, l) if token_type_ids is not None else None
+        flatten_position_ids = position_ids.reshape(-1, l) if position_ids is not None else None
+        flatten_inputs_embeds = inputs_embeds.reshape(-1, l, self.config.hidden_size) if inputs_embeds is not None else None
+
+        flatten_outputs = self.roberta(
+            flatten_input_ids,
+            attention_mask=flatten_attention_mask,
+            token_type_ids=flatten_token_type_ids,
+            position_ids=flatten_position_ids,
+            head_mask=head_mask,
+            inputs_embeds=flatten_inputs_embeds,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
+        )
+
+        flatten_pooled_output = self.pooler(flatten_outputs[0])
+        src_pooled_output, trg_pooled_output = flatten_pooled_output.reshape(b, 2, self.config.hidden_size).chunk(2, dim=1)
+        src_pooled_output, trg_pooled_output = src_pooled_output.squeeze(dim=1).contiguous(), trg_pooled_output.squeeze(dim=1).contiguous()
+
+        mask = (labels.unsqueeze(-1).expand(-1, b) == labels.unsqueeze(0).expand(b, -1)) & (1 - torch.eye(b)).to(labels.device).bool()
+        cl_logits = torch.einsum('ik,jk->ij', src_pooled_output, trg_pooled_output).masked_fill(mask, float('-inf'))
+        cl_labels = torch.arange(b).to(labels.device)
+        
+        loss_fct = CrossEntropyLoss()
+        cl_loss = loss_fct(cl_logits.view(-1, labels.size(0)), cl_labels.view(-1))
+
+        if self.cls_loss_wgt is not None and self.cls_loss_wgt > 0.0:
+            flatten_logits = self.classifier(self.dropout(flatten_outputs[1]))
+            src_logits, trg_logits = flatten_logits.reshape(b, 2, self.num_labels).chunk(2, dim=1)
+            src_logits, trg_logits = src_logits.squeeze(dim=1).contiguous(), trg_logits.squeeze(dim=1).contiguous()
+            src_loss = loss_fct(src_logits.view(-1, self.num_labels), labels.view(-1))
+            trg_loss = loss_fct(trg_logits.view(-1, self.num_labels), labels.view(-1))
+            cls_loss = src_loss + trg_loss
+            cls_logits = src_logits + trg_logits
+            loss = cl_loss + cls_loss * self.cls_loss_wgt
+            logits = cls_logits
+        else:
+            loss = cl_loss
+            logits = cl_logits
+
+        if not return_dict:
+            return (loss, logits,)
+
+        return DualPassageEncoderModelOutput(
+            loss=loss,
+            logits=logits,
         )
 
 
