@@ -424,7 +424,7 @@ def main():
         predict_dataset = predict_dataset.remove_columns("label") if "label" in predict_dataset else predict_dataset
         predictions = trainer.predict(support_dataset=support_dataset, test_dataset=predict_dataset, metric_key_prefix="predict").predictions
 
-        output_predict_file = os.path.join(training_args.output_dir, f"predict_results_{data_args.task_name}.txt")
+        output_predict_file = os.path.join(training_args.output_dir, f"predict_results_{data_args.task_name}.json")
         output_label_file = os.path.join(training_args.output_dir, f"predict_labels_{data_args.task_name}.txt")
         if trainer.is_world_process_zero():
             with open(output_predict_file, "w") as writer:
