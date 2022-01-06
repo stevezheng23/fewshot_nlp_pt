@@ -1551,12 +1551,14 @@ class RobertaForQuestionAnswering(RobertaPreTrainedModel):
 
 @add_start_docstrings(
     """
-    Bert Model with a dual encoder head on top for passage retrieval tasks (a linear layer on top of the pooled output
+    Roberta Model with a dual encoder head on top for passage retrieval tasks (a linear layer on top of the pooled output
     for computing source-target similarity).
     """,
     ROBERTA_INPUTS_DOCSTRING,
 )
 class RobertaForDualPassageEncoder(RobertaPreTrainedModel):
+    _keys_to_ignore_on_load_missing = [r"position_ids"]
+
     def __init__(self, config, cls_loss_wgt=None):
         super().__init__(config)
         self.num_labels = config.num_labels
