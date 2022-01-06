@@ -242,15 +242,19 @@ def main():
         "train": FewshotProcessor.to_datasets(processor.get_train_examples(data_args.train_file, data_args.max_train_samples_per_label)),
         "dev": FewshotProcessor.to_datasets(processor.get_dev_examples(data_args.dev_file)),
     }
-    if training_args.do_predict:
-        dataset_dict["test"] = FewshotProcessor.to_datasets(processor.get_test_examples(data_args.test_file))
-    raw_datasets = DatasetDict(dataset_dict)
     # A useful fast method:
     # https://huggingface.co/docs/datasets/package_reference/main_classes.html#datasets.Dataset.unique
-    label_set = set(raw_datasets["support"].unique("label"))
-    label_list = sorted(list(label_set)) + sorted([l for l in raw_datasets["train"].unique("label") if l not in label_set]) # Let's sort labels for determinism
-    label_to_id = {v: i for i, v in enumerate(label_list)}
+    label_list = sorted(dataset_dict["support"].unique("label")) # Let's sort labels for determinism
+    label_list = label_list + sorted([l for l in dataset_dict["train"].unique("label") if l not in label_list])
+    label_list = label_list + sorted([l for l in dataset_dict["dev"].unique("label") if l not in label_list])
     num_labels = len(label_list)
+
+    if training_args.do_predict:
+        dataset_dict["test"] = FewshotProcessor.to_datasets(processor.get_test_examples(data_args.test_file))
+        label_list = label_list + sorted([l for l in dataset_dict["test"].unique("label") if l not in label_list])
+
+    label_to_id = {v: i for i, v in enumerate(label_list)}
+    raw_datasets = DatasetDict(dataset_dict)
 
     # Load pretrained model and tokenizer
     #
@@ -304,7 +308,7 @@ def main():
         
         # Map labels to IDs
         if label_to_id is not None and "label" in examples:
-            result["label"] = [(label_to_id[l] if l != -1 else -1) for l in examples["label"]]
+            result["label"] = [(label_to_id[l] if l in label_to_id else -1) for l in examples["label"]]
         return result
 
     with training_args.main_process_first(desc="dataset map pre-processing"):
@@ -420,6 +424,7 @@ def main():
         predictions = trainer.predict(support_dataset=support_dataset, test_dataset=predict_dataset, metric_key_prefix="predict").predictions
 
         output_predict_file = os.path.join(training_args.output_dir, f"predict_results_{data_args.task_name}.txt")
+        output_label_file = os.path.join(training_args.output_dir, f"predict_labels_{data_args.task_name}.txt")
         if trainer.is_world_process_zero():
             with open(output_predict_file, "w") as writer:
                 logger.info(f"***** Predict results {data_args.task_name} *****")
@@ -427,6 +432,10 @@ def main():
                 for index, item in enumerate(predictions):
                     item = label_list[item]
                     writer.write(f"{index}\t{item}\n")
+            with open(output_label_file, "w") as writer:
+                logger.info(f"***** Save labels {data_args.task_name} *****")
+                for item in label_list:
+                    writer.write(f"{item}\n")
 
     if training_args.push_to_hub:
         kwargs = {"finetuned_from": model_args.model_name_or_path, "tasks": "text-fewshot"}
