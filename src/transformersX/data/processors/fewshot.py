@@ -142,7 +142,7 @@ class DefaultProcessor(FewshotProcessor):
             for (idx, d) in enumerate(lines):
                 guid = d['id'] if "id" in d else f"{self.task_name}-{set_type}-{idx}"
                 text_a = d["text"]
-                label = d["label"] if set_type != "test" else None
+                label = d["label"]
                 examples.append(InputExample(guid=guid, text_a=text_a, text_b=None, label=label))
         
         return examples
