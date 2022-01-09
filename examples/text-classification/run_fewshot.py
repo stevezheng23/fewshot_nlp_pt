@@ -133,6 +133,10 @@ class DataTrainingArguments:
         default=None,
         metadata={"help": "A json file containing the test data."}
     )
+    label_file: Optional[str] = field(
+        default=None,
+        metadata={"help": "A text file containing the label list."}
+    )
 
 
 @dataclass
@@ -243,12 +247,17 @@ def main():
         "train": FewshotProcessor.to_datasets(processor.get_train_examples(data_args.train_file, data_args.max_train_samples_per_label)),
         "dev": FewshotProcessor.to_datasets(processor.get_dev_examples(data_args.dev_file)),
     }
-    # A useful fast method:
-    # https://huggingface.co/docs/datasets/package_reference/main_classes.html#datasets.Dataset.unique
-    label_list = sorted(dataset_dict["support"].unique("label")) # Let's sort labels for determinism
-    label_list = label_list + sorted([l for l in dataset_dict["train"].unique("label") if l not in label_list])
-    label_list = label_list + sorted([l for l in dataset_dict["dev"].unique("label") if l not in label_list])
-    num_labels = len(label_list)
+
+    if data_args.label_file and os.path.exists(data_args.label_file):
+        label_list = FewshotProcessor.get_labels_from_file(data_args.label_file)
+        num_labels = len(label_list)
+    else:
+        # A useful fast method:
+        # https://huggingface.co/docs/datasets/package_reference/main_classes.html#datasets.Dataset.unique
+        label_list = sorted(dataset_dict["support"].unique("label")) # Let's sort labels for determinism
+        label_list = label_list + sorted([l for l in dataset_dict["train"].unique("label") if l not in label_list])
+        label_list = label_list + sorted([l for l in dataset_dict["dev"].unique("label") if l not in label_list])
+        num_labels = len(label_list)
 
     if training_args.do_predict:
         dataset_dict["test"] = FewshotProcessor.to_datasets(processor.get_test_examples(data_args.test_file))

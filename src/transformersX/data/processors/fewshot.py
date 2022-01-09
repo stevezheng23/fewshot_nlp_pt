@@ -54,10 +54,16 @@ class FewshotProcessor:
         raise NotImplementedError()
 
     @classmethod
-    def get_labels(cls, examples):
-        """Gets the list of labels for this data set."""
+    def get_labels_from_examples(cls, examples):
+        """Gets the list of labels for a data set."""
         labels = set([d["label"] for d in examples])
         return sorted(list(labels))
+
+    @classmethod
+    def get_labels_from_file(cls, label_file):
+        """Gets the list of labels for a label file."""
+        labels = cls._read_tsv(label_file)
+        return labels
 
     @classmethod
     def to_datasets(cls, examples):
