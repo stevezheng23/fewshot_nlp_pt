@@ -137,6 +137,10 @@ class DataTrainingArguments:
         default=None,
         metadata={"help": "A text file containing the label list."}
     )
+    default_label: Optional[str] = field(
+        default="default.out_of_scope",
+        metadata={"help": "The default label."}
+    )
 
 
 @dataclass
@@ -308,6 +312,7 @@ def main():
         )
     max_seq_length = min(data_args.max_seq_length, tokenizer.model_max_length)
 
+    default_label_id = label_to_id[data_args.default_label] if data_args.default_label in label_to_id else -1
     text1_key, text2_key = "text_a", "text_b"
     def preprocess_function(examples):
         # Tokenize the texts
@@ -318,7 +323,7 @@ def main():
         
         # Map labels to IDs
         if label_to_id is not None and "label" in examples:
-            result["label"] = [(label_to_id[l] if l in label_to_id else -1) for l in examples["label"]]
+            result["label"] = [(label_to_id[l] if l in label_to_id else default_label_id) for l in examples["label"]]
         return result
 
     with training_args.main_process_first(desc="dataset map pre-processing"):
