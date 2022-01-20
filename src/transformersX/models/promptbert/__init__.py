@@ -30,6 +30,7 @@ if is_torch_available():
     _import_structure["modeling_promptbert"] = [
         "PROMPTBERT_PRETRAINED_MODEL_ARCHIVE_LIST",
         "PromptBertForSequenceClassification",
+        "PromptBertForDualPassageEncoder",
         "PromptBertModel",
         "PromptBertPreTrainedModel",
         "load_tf_weights_in_promptbert",
@@ -43,6 +44,7 @@ if TYPE_CHECKING:
         from .modeling_promptbert import (
             PROMPTBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
             PromptBertForSequenceClassification,
+            PromptBertForDualPassageEncoder,
             PromptBertModel,
             PromptBertPreTrainedModel,
             load_tf_weights_in_promptbert,
