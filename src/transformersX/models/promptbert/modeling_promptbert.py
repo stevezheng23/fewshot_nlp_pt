@@ -61,7 +61,6 @@ from ...utils import logging
 from .configuration_promptbert import PromptBertConfig
 from ..bert.modeling_bert import BertEmbeddings as PromptBertEmbeddings
 from ..bert.modeling_bert import BertEncoder as PromptBertEncoder
-from ..bert.modeling_bert import BertPooler as PromptBertPooler
 
 
 logger = logging.get_logger(__name__)
@@ -153,6 +152,60 @@ def load_tf_weights_in_promptbert(model, config, tf_checkpoint_path):
         logger.info(f"Initialize PyTorch weight {name}")
         pointer.data = torch.from_numpy(array)
     return model
+
+
+class PromptBertSoftPrompt(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.prefix_len = config.prefix_len
+        self.prompt_embeddings = nn.Parameter(
+            torch.normal(0.0, config.initializer_range, size=(config.num_task, config.prefix_len, self.hidden_size)))
+    
+    def forward(
+        self,
+        inputs_embeds,
+        attention_mask=None,
+        task_ids=None,
+    ):
+        if task_ids is None:
+            task_ids = torch.zeros(inputs_embeds.size(0), dtype=torch.long, device=inputs_embeds.device)
+        prompt_embeds = torch.index_select(self.prompt_embeddings, 0, task_ids)
+        prompt_embeds = torch.cat([prompt_embeds, inputs_embeds], dim=1)
+        if attention_mask is None:
+            return prompt_embeds, None
+        prompt_mask = torch.ones(attention_mask.size(0), self.prefix_len, dtype=attention_mask.dtype, device=attention_mask.device)
+        prompt_mask = torch.cat([prompt_mask, attention_mask], dim=1)
+        return prompt_embeds, prompt_mask
+
+
+class PromptBertPooler(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.prefix_len = config.prefix_len
+        self.pooler_type = config.pooler_type
+        self.dense = nn.Linear(config.hidden_size, config.hidden_size)
+        self.activation = nn.Tanh()
+
+    def forward(self, hidden_states, pooling_mask=None):
+        # We "pool" the model based on the pooler type (e.g., 'first', 'avg', 'max', etc.)
+        # By default simply taking the hidden state corresponding to the first token.
+        if self.pooler_type == "avg":
+            if pooling_mask is not None:
+                hidden_states.masked_fill((1.0 - pooling_mask).bool().unsqueeze(-1), 0.0)
+                x = torch.sum(hidden_states, dim=1) / torch.count_nonzero(pooling_mask, dim=-1).unsqueeze(-1)
+            else:
+                x = torch.mean(hidden_states, dim=1)
+        elif self.pooler_type == "max":
+            if pooling_mask is not None:
+                hidden_states.masked_fill((1.0 - pooling_mask).bool().unsqueeze(-1), float("-inf"))
+            x, _ = torch.max(hidden_states, dim=1)
+        elif self.pooler_type == "first":
+            x = hidden_states[:, 0, :]
+        else:
+            x = hidden_states[:, self.prefix_len, :]
+        x = self.dense(x)
+        x = self.activation(x)
+        return x
 
 
 class PromptBertPreTrainedModel(PreTrainedModel):
