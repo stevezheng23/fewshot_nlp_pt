@@ -157,16 +157,19 @@ def load_tf_weights_in_promptbert(model, config, tf_checkpoint_path):
 class PromptBertSoftPrompt(nn.Module):
     def __init__(self, config):
         super().__init__()
+        self.num_task = config.num_task
         self.prefix_len = config.prefix_len
+        self.hidden_size = config.hidden_size
         self.prompt_embeddings = nn.Parameter(
-            torch.normal(0.0, config.initializer_range, size=(config.num_task, config.prefix_len, self.hidden_size)))
-    
-    def forward(
-        self,
-        inputs_embeds,
-        attention_mask=None,
-        task_ids=None,
-    ):
+            torch.normal(0.0, config.initializer_range, size=(config.num_task, config.prefix_len, config.hidden_size)))
+
+    def update_prompt(self, embeddings):
+        assert embeddings.size(1) == self.hidden_size
+        sample_ids = torch.randint(0, embeddings.size(0), size=(self.num_task, self.prefix_len), device=self.prompt_embeddings.device)
+        sample_embeds = torch.index_select(embeddings, 0, sample_ids.view(-1)).view(self.num_task, self.prefix_len, self.hidden_size)
+        self.prompt_embeddings.data.copy_(sample_embeds.data)
+
+    def forward(self, inputs_embeds, attention_mask=None, task_ids=None):
         if task_ids is None:
             task_ids = torch.zeros(inputs_embeds.size(0), dtype=torch.long, device=inputs_embeds.device)
         prompt_embeds = torch.index_select(self.prompt_embeddings, 0, task_ids)
@@ -514,6 +517,10 @@ class PromptBertForSequenceClassification(PromptBertPreTrainedModel):
 
         self.init_weights()
 
+    def tie_weights(self):
+        super().tie_weights()
+        self.bert.prompt.update_prompt(self.bert.embeddings.word_embeddings.weight)
+
     @add_start_docstrings_to_model_forward(PROMPTBERT_INPUTS_DOCSTRING.format("batch_size, sequence_length"))
     @add_code_sample_docstrings(
         tokenizer_class=_TOKENIZER_FOR_DOC,
@@ -615,6 +622,10 @@ class PromptBertForDualPassageEncoder(PromptBertPreTrainedModel):
             self.classifier = nn.Linear(config.hidden_size, config.num_labels)
 
         self.init_weights()
+
+    def tie_weights(self):
+        super().tie_weights()
+        self.bert.prompt.update_prompt(self.bert.embeddings.word_embeddings.weight)
 
     @add_start_docstrings_to_model_forward(PROMPTBERT_INPUTS_DOCSTRING.format("batch_size, 2, sequence_length"))
     @add_code_sample_docstrings(
