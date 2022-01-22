@@ -326,6 +326,8 @@ class PromptBertModel(PromptBertPreTrainedModel):
         super().__init__(config)
         self.config = config
 
+        self.prompt = PromptBertSoftPrompt(config)
+
         self.embeddings = PromptBertEmbeddings(config)
         self.encoder = PromptBertEncoder(config)
 
@@ -360,6 +362,7 @@ class PromptBertModel(PromptBertPreTrainedModel):
         attention_mask=None,
         token_type_ids=None,
         position_ids=None,
+        task_ids=None,
         head_mask=None,
         inputs_embeds=None,
         encoder_hidden_states=None,
@@ -428,9 +431,21 @@ class PromptBertModel(PromptBertPreTrainedModel):
             else:
                 token_type_ids = torch.zeros(input_shape, dtype=torch.long, device=device)
 
+        embedding_output = self.embeddings(
+            input_ids=input_ids,
+            position_ids=position_ids,
+            token_type_ids=token_type_ids,
+            inputs_embeds=inputs_embeds,
+            past_key_values_length=past_key_values_length,
+        )
+
+        prompt_output = self.prompt(embedding_output, attention_mask, task_ids)
+        prompt_embeds = prompt_output[0]
+        prompt_mask = prompt_output[1]
+
         # We can provide a self-attention mask of dimensions [batch_size, from_seq_length, to_seq_length]
         # ourselves in which case we just need to make it broadcastable to all heads.
-        extended_attention_mask: torch.Tensor = self.get_extended_attention_mask(attention_mask, input_shape, device)
+        extended_attention_mask: torch.Tensor = self.get_extended_attention_mask(prompt_mask, input_shape, device)
 
         # If a 2D or 3D attention mask is provided for the cross-attention
         # we need to make broadcastable to [batch_size, num_heads, seq_length, seq_length]
@@ -450,15 +465,8 @@ class PromptBertModel(PromptBertPreTrainedModel):
         # and head_mask is converted to shape [num_hidden_layers x batch x num_heads x seq_length x seq_length]
         head_mask = self.get_head_mask(head_mask, self.config.num_hidden_layers)
 
-        embedding_output = self.embeddings(
-            input_ids=input_ids,
-            position_ids=position_ids,
-            token_type_ids=token_type_ids,
-            inputs_embeds=inputs_embeds,
-            past_key_values_length=past_key_values_length,
-        )
         encoder_outputs = self.encoder(
-            embedding_output,
+            prompt_embeds,
             attention_mask=extended_attention_mask,
             head_mask=head_mask,
             encoder_hidden_states=encoder_hidden_states,
@@ -519,6 +527,7 @@ class PromptBertForSequenceClassification(PromptBertPreTrainedModel):
         attention_mask=None,
         token_type_ids=None,
         position_ids=None,
+        task_ids=None,
         head_mask=None,
         inputs_embeds=None,
         labels=None,
@@ -539,6 +548,7 @@ class PromptBertForSequenceClassification(PromptBertPreTrainedModel):
             attention_mask=attention_mask,
             token_type_ids=token_type_ids,
             position_ids=position_ids,
+            task_ids=task_ids,
             head_mask=head_mask,
             inputs_embeds=inputs_embeds,
             output_attentions=output_attentions,
@@ -619,6 +629,7 @@ class PromptBertForDualPassageEncoder(PromptBertPreTrainedModel):
         attention_mask=None,
         token_type_ids=None,
         position_ids=None,
+        task_ids=None,
         head_mask=None,
         inputs_embeds=None,
         labels=None,
@@ -639,6 +650,7 @@ class PromptBertForDualPassageEncoder(PromptBertPreTrainedModel):
                 attention_mask=attention_mask,
                 token_type_ids=token_type_ids,
                 position_ids=position_ids,
+                task_ids=task_ids,
                 head_mask=head_mask,
                 inputs_embeds=inputs_embeds,
                 output_attentions=output_attentions,
@@ -663,6 +675,7 @@ class PromptBertForDualPassageEncoder(PromptBertPreTrainedModel):
         flatten_attention_mask = attention_mask.reshape(-1, l) if attention_mask is not None else None
         flatten_token_type_ids = token_type_ids.reshape(-1, l) if token_type_ids is not None else None
         flatten_position_ids = position_ids.reshape(-1, l) if position_ids is not None else None
+        flatten_task_ids = task_ids.reshape(-1) if task_ids is not None else None
         flatten_inputs_embeds = inputs_embeds.reshape(-1, l, self.config.hidden_size) if inputs_embeds is not None else None
 
         flatten_outputs = self.bert(
@@ -670,6 +683,7 @@ class PromptBertForDualPassageEncoder(PromptBertPreTrainedModel):
             attention_mask=flatten_attention_mask,
             token_type_ids=flatten_token_type_ids,
             position_ids=flatten_position_ids,
+            task_ids=flatten_task_ids,
             head_mask=head_mask,
             inputs_embeds=flatten_inputs_embeds,
             output_attentions=output_attentions,
