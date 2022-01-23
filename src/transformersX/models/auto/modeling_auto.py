@@ -188,7 +188,7 @@ from ..longformer.modeling_longformer import (
     LongformerForTokenClassification,
     LongformerModel,
 )
-from ..lorabert.modeling_lorabert import LoraBertForSequenceClassification, LoraBertModel
+from ..lorabert.modeling_lorabert import LoraBertForSequenceClassification, LoraBertForDualPassageEncoder, LoraBertModel
 from ..luke.modeling_luke import LukeModel
 from ..lxmert.modeling_lxmert import LxmertForPreTraining, LxmertForQuestionAnswering, LxmertModel
 from ..m2m_100.modeling_m2m_100 import M2M100ForConditionalGeneration, M2M100Model
@@ -234,6 +234,7 @@ from ..mt5.modeling_mt5 import MT5ForConditionalGeneration, MT5Model
 from ..mixupbert.modeling_mixupbert import MixupBertForSequenceClassification, MixupBertModel
 from ..openai.modeling_openai import OpenAIGPTForSequenceClassification, OpenAIGPTLMHeadModel, OpenAIGPTModel
 from ..pegasus.modeling_pegasus import PegasusForCausalLM, PegasusForConditionalGeneration, PegasusModel
+from ..promptbert.modeling_promptbert import PromptBertForSequenceClassification, PromptBertForDualPassageEncoder, PromptBertModel
 from ..prophetnet.modeling_prophetnet import ProphetNetForCausalLM, ProphetNetForConditionalGeneration, ProphetNetModel
 from ..rag.modeling_rag import (  # noqa: F401 - need to import all RagModels to be in globals() function
     RagModel,
@@ -377,6 +378,7 @@ from .configuration_auto import (
     MixupBertConfig,
     OpenAIGPTConfig,
     PegasusConfig,
+    PromptBertConfig,
     ProphetNetConfig,
     ReformerConfig,
     RemBertConfig,
@@ -464,13 +466,14 @@ MODEL_MAPPING = OrderedDict(
         (MPNetConfig, MPNetModel),
         (TapasConfig, TapasModel),
         (MarianConfig, MarianModel),
+        (IBertConfig, IBertModel),
         (CutoffBertConfig, CutoffBertModel),
         (CutoffRobertaConfig, CutoffRobertaModel),
         (MixupBertConfig, MixupBertModel),
         (AdapterBertConfig, AdapterBertModel),
         (LoraBertConfig, LoraBertModel),
         (MoCoBertConfig, MoCoBertModel),
-        (IBertConfig, IBertModel),
+        (PromptBertConfig, PromptBertModel),
     ]
 )
 
@@ -601,8 +604,10 @@ MODEL_FOR_DUAL_PASSAGE_ENCODER_MAPPING = OrderedDict(
     [
         # Model for Dual Passage Encoder mapping
         (BertConfig, BertForDualPassageEncoder),
-        (MoCoBertConfig, MoCoBertForDualPassageEncoder),
         (RobertaConfig, RobertaForDualPassageEncoder),
+        (LoraBertConfig, LoraBertForDualPassageEncoder),
+        (MoCoBertConfig, MoCoBertForDualPassageEncoder),
+        (PromptBertConfig, PromptBertForDualPassageEncoder),
     ]
 )
 
@@ -715,13 +720,14 @@ MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING = OrderedDict(
         (TransfoXLConfig, TransfoXLForSequenceClassification),
         (MPNetConfig, MPNetForSequenceClassification),
         (TapasConfig, TapasForSequenceClassification),
+        (IBertConfig, IBertForSequenceClassification),
         (CutoffBertConfig, CutoffBertForSequenceClassification),
         (CutoffRobertaConfig, CutoffRobertaForSequenceClassification),
         (MixupBertConfig, MixupBertForSequenceClassification),
         (AdapterBertConfig, AdapterBertForSequenceClassification),
         (LoraBertConfig, LoraBertForSequenceClassification),
         (MoCoBertConfig, MoCoBertForSequenceClassification),
-        (IBertConfig, IBertForSequenceClassification),
+        (PromptBertConfig, PromptBertForSequenceClassification),
     ]
 )
 

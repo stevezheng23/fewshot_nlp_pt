@@ -64,6 +64,7 @@ from ..mpnet.tokenization_mpnet import MPNetTokenizer
 from ..mixupbert.tokenization_mixupbert import MixupBertTokenizer
 from ..openai.tokenization_openai import OpenAIGPTTokenizer
 from ..phobert.tokenization_phobert import PhobertTokenizer
+from ..promptbert.tokenization_promptbert import PromptBertTokenizer
 from ..prophetnet.tokenization_prophetnet import ProphetNetTokenizer
 from ..rag.tokenization_rag import RagTokenizer
 from ..retribert.tokenization_retribert import RetriBertTokenizer
@@ -119,6 +120,7 @@ from .configuration_auto import (
     MT5Config,
     OpenAIGPTConfig,
     PegasusConfig,
+    PromptBertConfig,
     ProphetNetConfig,
     RagConfig,
     ReformerConfig,
@@ -319,6 +321,7 @@ TOKENIZER_MAPPING = OrderedDict(
         (AdapterBertConfig, (AdapterBertTokenizer, None)),
         (LoraBertConfig, (LoraBertTokenizer, None)),
         (MoCoBertConfig, (MoCoBertTokenizer, None)),
+        (PromptBertConfig, (PromptBertTokenizer, None)),
     ]
 )
 

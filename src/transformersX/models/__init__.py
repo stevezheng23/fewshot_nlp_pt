@@ -72,6 +72,7 @@ from . import (
     openai,
     pegasus,
     phobert,
+    promptbert,
     prophetnet,
     rag,
     reformer,
