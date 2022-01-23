@@ -229,6 +229,7 @@ _import_structure = {
     "models.openai": ["OPENAI_GPT_PRETRAINED_CONFIG_ARCHIVE_MAP", "OpenAIGPTConfig", "OpenAIGPTTokenizer"],
     "models.pegasus": ["PegasusConfig"],
     "models.phobert": ["PhobertTokenizer"],
+    "models.promptbert": ["PROMPTBERT_PRETRAINED_CONFIG_ARCHIVE_MAP", "PromptBertConfig","PromptBertTokenizer"],
     "models.prophetnet": ["PROPHETNET_PRETRAINED_CONFIG_ARCHIVE_MAP", "ProphetNetConfig", "ProphetNetTokenizer"],
     "models.rag": ["RagConfig", "RagRetriever", "RagTokenizer"],
     "models.reformer": ["REFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP", "ReformerConfig"],
@@ -906,6 +907,7 @@ if is_torch_available():
         [
             "LORABERT_PRETRAINED_MODEL_ARCHIVE_LIST",
             "LoraBertForSequenceClassification",
+            "LoraBertForDualPassageEncoder",
             "LoraBertModel",
             "LoraBertPreTrainedModel",
             "load_tf_weights_in_lorabert",
@@ -986,6 +988,7 @@ if is_torch_available():
     _import_structure["models.mocobert"].extend(
         [
             "MOCOBERT_PRETRAINED_MODEL_ARCHIVE_LIST",
+            "MoCoBertForSequenceClassification",
             "MoCoBertForDualPassageEncoder",
             "MoCoBertModel",
             "MoCoBertPreTrainedModel",
@@ -1028,6 +1031,16 @@ if is_torch_available():
     )
     _import_structure["models.pegasus"].extend(
         ["PegasusForCausalLM", "PegasusForConditionalGeneration", "PegasusModel", "PegasusPreTrainedModel"]
+    )
+    _import_structure["models.promptbert"].extend(
+        [
+            "PROMPTBERT_PRETRAINED_MODEL_ARCHIVE_LIST",
+            "PromptBertForSequenceClassification",
+            "PromptBertForDualPassageEncoder",
+            "PromptBertModel",
+            "PromptBertPreTrainedModel",
+            "load_tf_weights_in_promptbert",
+        ]
     )
     _import_structure["models.prophetnet"].extend(
         [
@@ -1968,6 +1981,7 @@ if TYPE_CHECKING:
     from .models.openai import OPENAI_GPT_PRETRAINED_CONFIG_ARCHIVE_MAP, OpenAIGPTConfig, OpenAIGPTTokenizer
     from .models.pegasus import PegasusConfig
     from .models.phobert import PhobertTokenizer
+    from .models.promptbert import PROMPTBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, PromptBertConfig, PromptBertTokenizer
     from .models.prophetnet import PROPHETNET_PRETRAINED_CONFIG_ARCHIVE_MAP, ProphetNetConfig, ProphetNetTokenizer
     from .models.rag import RagConfig, RagRetriever, RagTokenizer
     from .models.reformer import REFORMER_PRETRAINED_CONFIG_ARCHIVE_MAP, ReformerConfig
@@ -2538,6 +2552,7 @@ if TYPE_CHECKING:
         from .models.lorabert import (
             LORABERT_PRETRAINED_MODEL_ARCHIVE_LIST,
             LoraBertForSequenceClassification,
+            LoraBertForDualPassageEncoder,
             LoraBertModel,
             LoraBertPreTrainedModel,
             load_tf_weights_in_lorabert,
@@ -2604,6 +2619,7 @@ if TYPE_CHECKING:
         )
         from .models.mocobert import (
             MOCOBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
+            MoCoBertForSequenceClassification,
             MoCoBertForDualPassageEncoder,
             MoCoBertModel,
             MoCoBertPreTrainedModel,
@@ -2642,6 +2658,14 @@ if TYPE_CHECKING:
             PegasusForConditionalGeneration,
             PegasusModel,
             PegasusPreTrainedModel,
+        )
+        from .models.promptbert import (
+            PROMPTBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
+            PromptBertForSequenceClassification,
+            PromptBertForDualPassageEncoder,
+            PromptBertModel,
+            PromptBertPreTrainedModel,
+            load_tf_weights_in_promptbert,
         )
         from .models.prophetnet import (
             PROPHETNET_PRETRAINED_MODEL_ARCHIVE_LIST,

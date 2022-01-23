@@ -73,6 +73,7 @@ from ..mt5.configuration_mt5 import MT5Config
 from ..mixupbert.configuration_mixupbert import MIXUPBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, MixupBertConfig
 from ..openai.configuration_openai import OPENAI_GPT_PRETRAINED_CONFIG_ARCHIVE_MAP, OpenAIGPTConfig
 from ..pegasus.configuration_pegasus import PegasusConfig
+from ..promptbert.configuration_promptbert import PROMPTBERT_PRETRAINED_CONFIG_ARCHIVE_MAP, PromptBertConfig
 from ..prophetnet.configuration_prophetnet import PROPHETNET_PRETRAINED_CONFIG_ARCHIVE_MAP, ProphetNetConfig
 from ..rag.configuration_rag import RagConfig
 from ..reformer.configuration_reformer import ReformerConfig
@@ -164,6 +165,7 @@ ALL_PRETRAINED_CONFIG_ARCHIVE_MAP = dict(
         ADAPTERBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
         LORABERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
         MOCOBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        PROMPTBERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
     ]
     for key, value, in pretrained_map.items()
 )
@@ -240,6 +242,7 @@ CONFIG_MAPPING = OrderedDict(
         ("adapterbert", AdapterBertConfig),
         ("lorabert", LoraBertConfig),
         ("mocobert", MoCoBertConfig),
+        ("promptbert", PromptBertConfig),
     ]
 )
 
@@ -314,6 +317,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("adapterbert", "AdapterBERT"),
         ("lorabert", "LORABERT"),
         ("mocobert", "MoCoBERT"),
+        ("promptbert", "PromptBERT"),
     ]
 )
 
