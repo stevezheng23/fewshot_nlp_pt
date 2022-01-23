@@ -29,6 +29,7 @@ _import_structure = {
 if is_torch_available():
     _import_structure["modeling_mocobert"] = [
         "MOCOBERT_PRETRAINED_MODEL_ARCHIVE_LIST",
+        "MoCoBertForSequenceClassification",
         "MoCoBertForDualPassageEncoder",
         "MoCoBertModel",
         "MoCoBertPreTrainedModel",
@@ -42,6 +43,7 @@ if TYPE_CHECKING:
     if is_torch_available():
         from .modeling_mocobert import (
             MOCOBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
+            MoCoBertForSequenceClassification,
             MoCoBertForDualPassageEncoder,
             MoCoBertModel,
             MoCoBertPreTrainedModel,
