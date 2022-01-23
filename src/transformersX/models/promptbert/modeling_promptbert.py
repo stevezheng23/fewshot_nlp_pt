@@ -184,8 +184,8 @@ class PromptBertSoftPrompt(nn.Module):
 class PromptBertPooler(nn.Module):
     def __init__(self, config):
         super().__init__()
-        self.prefix_len = config.prefix_len
         self.pooler_type = config.pooler_type
+        self.prefix_len = config.prefix_len
         self.dense = nn.Linear(config.hidden_size, config.hidden_size)
         self.activation = nn.Tanh()
 
@@ -516,10 +516,16 @@ class PromptBertForSequenceClassification(PromptBertPreTrainedModel):
         self.classifier = nn.Linear(config.hidden_size, config.num_labels)
 
         self.init_weights()
+        self.freeze_weights()
 
     def tie_weights(self):
         super().tie_weights()
         self.bert.prompt.update_prompt(self.bert.embeddings.word_embeddings.weight)
+        self.bert.prompt.prompt_embeddings.requires_grad = True
+
+    def freeze_weights(self):
+        for param in self.parameters():
+            param.requires_grad = False
 
     @add_start_docstrings_to_model_forward(PROMPTBERT_INPUTS_DOCSTRING.format("batch_size, sequence_length"))
     @add_code_sample_docstrings(
@@ -622,10 +628,16 @@ class PromptBertForDualPassageEncoder(PromptBertPreTrainedModel):
             self.classifier = nn.Linear(config.hidden_size, config.num_labels)
 
         self.init_weights()
+        self.freeze_weights()
 
     def tie_weights(self):
         super().tie_weights()
         self.bert.prompt.update_prompt(self.bert.embeddings.word_embeddings.weight)
+        self.bert.prompt.prompt_embeddings.requires_grad = True
+
+    def freeze_weights(self):
+        for param in self.parameters():
+            param.requires_grad = False
 
     @add_start_docstrings_to_model_forward(PROMPTBERT_INPUTS_DOCSTRING.format("batch_size, 2, sequence_length"))
     @add_code_sample_docstrings(
@@ -686,7 +698,7 @@ class PromptBertForDualPassageEncoder(PromptBertPreTrainedModel):
         flatten_attention_mask = attention_mask.reshape(-1, l) if attention_mask is not None else None
         flatten_token_type_ids = token_type_ids.reshape(-1, l) if token_type_ids is not None else None
         flatten_position_ids = position_ids.reshape(-1, l) if position_ids is not None else None
-        flatten_task_ids = task_ids.reshape(-1) if task_ids is not None else None
+        flatten_task_ids = task_ids.repeat(2) if task_ids is not None else None
         flatten_inputs_embeds = inputs_embeds.reshape(-1, l, self.config.hidden_size) if inputs_embeds is not None else None
 
         flatten_outputs = self.bert(

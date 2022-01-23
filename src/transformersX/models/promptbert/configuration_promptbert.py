@@ -122,6 +122,9 @@ class PromptBertConfig(PretrainedConfig):
         position_embedding_type="absolute",
         use_cache=True,
         classifier_dropout=None,
+        pooler_type="default",
+        num_task=1,
+        prefix_len=5,
         **kwargs
     ):
         super().__init__(pad_token_id=pad_token_id, **kwargs)
@@ -142,3 +145,6 @@ class PromptBertConfig(PretrainedConfig):
         self.position_embedding_type = position_embedding_type
         self.use_cache = use_cache
         self.classifier_dropout = classifier_dropout
+        self.pooler_type = pooler_type
+        self.num_task = num_task
+        self.prefix_len = prefix_len
