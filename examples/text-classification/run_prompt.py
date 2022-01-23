@@ -141,6 +141,10 @@ class DataTrainingArguments:
         default="default.out_of_scope",
         metadata={"help": "The default label."}
     )
+    default_task: Optional[str] = field(
+        default="default",
+        metadata={"help": "The default task."}
+    )
 
 
 @dataclass
@@ -268,6 +272,15 @@ def main():
         label_list = label_list + sorted([l for l in dataset_dict["test"].unique("label") if l not in label_list])
 
     label_to_id = {v: i for i, v in enumerate(label_list)}
+    default_label_id = label_to_id[data_args.default_label] if data_args.default_label in label_to_id else -1
+
+    # Create task to ID mapping
+    task_list = [data_args.default_task]
+    task_list = task_list + sorted([t for t in dataset_dict["support"].unique("task") if t not in task_list]) # Let's sort tasks for determinism
+    task_list = task_list + sorted([t for t in dataset_dict["train"].unique("task") if t not in task_list])
+    task_to_id = {v: i for i, v in enumerate(task_list)}
+    default_task_id = task_to_id[data_args.default_task]
+
     raw_datasets = DatasetDict(dataset_dict)
 
     # Load pretrained model and tokenizer
@@ -276,6 +289,7 @@ def main():
     # download model & vocab.
     config = AutoConfig.from_pretrained(
         model_args.config_name if model_args.config_name else model_args.model_name_or_path,
+        num_task=len(task_list),
         num_labels=num_labels,
         finetuning_task=data_args.task_name,
         cache_dir=model_args.cache_dir,
@@ -312,7 +326,6 @@ def main():
         )
     max_seq_length = min(data_args.max_seq_length, tokenizer.model_max_length)
 
-    default_label_id = label_to_id[data_args.default_label] if data_args.default_label in label_to_id else -1
     text1_key, text2_key = "text_a", "text_b"
     def preprocess_function(examples):
         # Tokenize the texts
@@ -324,6 +337,9 @@ def main():
         # Map labels to IDs
         if label_to_id is not None and "label" in examples:
             result["label"] = [(label_to_id[l] if l in label_to_id else default_label_id) for l in examples["label"]]
+        # Map tasks to IDs
+        if task_to_id is not None and "task" in examples:
+            result["task_ids"] = [(task_to_id[t] if t in task_to_id else default_task_id) for t in examples["task"]]
         return result
 
     with training_args.main_process_first(desc="dataset map pre-processing"):
