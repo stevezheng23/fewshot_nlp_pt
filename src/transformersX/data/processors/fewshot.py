@@ -132,7 +132,8 @@ class DefaultProcessor(FewshotProcessor):
                         guid = f"{self.task_name}-{set_type}-{idx}"
                         text_a = t_list[i]["text"]
                         text_b = t_list[j]["text"]
-                        p_list.append(InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
+                        task = t_list[i]["task"] if "task" in t_list[i] else "default"
+                        p_list.append(InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label, task=task))
                         idx += 1
                 random.shuffle(p_list)
                 if per_label_limit is not None and per_label_limit > 0:
@@ -143,13 +144,16 @@ class DefaultProcessor(FewshotProcessor):
                 guid = d['id'] if "id" in d else f"{self.task_name}-{set_type}-{idx}"
                 text_a = d["text1"]
                 text_b = d["text2"]
-                examples.append(InputExample(guid=guid, text_a=text_a, text_b=text_b, label=guid))
+                label = guid
+                task = d["task"] if "task" in d else "default"
+                examples.append(InputExample(guid=guid, text_a=text_a, text_b=text_b, label=guid, task=task))
         else:
             for (idx, d) in enumerate(lines):
                 guid = d['id'] if "id" in d else f"{self.task_name}-{set_type}-{idx}"
                 text_a = d["text"]
                 label = d["label"]
-                examples.append(InputExample(guid=guid, text_a=text_a, text_b=None, label=label))
+                task = d["task"] if "task" in d else "default"
+                examples.append(InputExample(guid=guid, text_a=text_a, text_b=None, label=label, task=task))
         
         return examples
 

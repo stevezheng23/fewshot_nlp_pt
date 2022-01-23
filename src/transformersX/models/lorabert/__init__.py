@@ -22,7 +22,7 @@ from ...file_utils import _LazyModule, is_tokenizers_available, is_torch_availab
 
 
 _import_structure = {
-    "configuration_lorabert": ["LORABERT_PRETRAINED_CONFIG_ARCHIVE_MAP", "LoRABertConfig"],
+    "configuration_lorabert": ["LORABERT_PRETRAINED_CONFIG_ARCHIVE_MAP", "LoraBertConfig"],
     "tokenization_lorabert": ["LoraBertTokenizer"],
 }
 
@@ -30,6 +30,7 @@ if is_torch_available():
     _import_structure["modeling_lorabert"] = [
         "LORABERT_PRETRAINED_MODEL_ARCHIVE_LIST",
         "LoraBertForSequenceClassification",
+        "LoraBertForDualPassageEncoder",
         "LoraBertModel",
         "LoraBertPreTrainedModel",
         "load_tf_weights_in_lorabert",
@@ -43,6 +44,7 @@ if TYPE_CHECKING:
         from .modeling_lorabert import (
             LORABERT_PRETRAINED_MODEL_ARCHIVE_LIST,
             LoraBertForSequenceClassification,
+            LoraBertForDualPassageEncoder,
             LoraBertModel,
             LoraBertPreTrainedModel,
             load_tf_weights_in_lorabert,
