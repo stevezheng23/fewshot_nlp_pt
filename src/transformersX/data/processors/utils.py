@@ -46,6 +46,7 @@ class InputExample:
     text_a: str
     text_b: Optional[str] = None
     label: Optional[str] = None
+    task: Optional[str] = None
 
     def to_json_string(self):
         """Serializes this instance to a JSON string."""
@@ -72,6 +73,7 @@ class InputFeatures:
     attention_mask: Optional[List[int]] = None
     token_type_ids: Optional[List[int]] = None
     label: Optional[Union[int, float]] = None
+    task: Optional[Union[int, float]] = None
 
     def to_json_string(self):
         """Serializes this instance to a JSON string."""
