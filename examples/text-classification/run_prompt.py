@@ -141,12 +141,16 @@ class DataTrainingArguments:
         default="default.out_of_scope",
         metadata={"help": "The default label."}
     )
+    task_file: Optional[str] = field(
+        default=None,
+        metadata={"help": "A text file containing the task list."}
+    )
     default_task: Optional[str] = field(
         default="default",
         metadata={"help": "The default task."}
     )
     prefix_len: Optional[int] = field(
-        default=5,
+        default=1,
         metadata={"help": "The length of soft prompts to prepend."},
     )
     freeze_weights: bool = field(
@@ -283,11 +287,15 @@ def main():
     default_label_id = label_to_id[data_args.default_label] if data_args.default_label in label_to_id else -1
 
     # Create task to ID mapping
-    task_list = [data_args.default_task]
-    task_list = task_list + sorted([t for t in dataset_dict["support"].unique("task") if t not in task_list]) # Let's sort tasks for determinism
-    task_list = task_list + sorted([t for t in dataset_dict["train"].unique("task") if t not in task_list])
+    if data_args.task_file and os.path.exists(data_args.task_file):
+        task_list = FewshotProcessor.get_tasks_from_file(data_args.task_file)
+    else:
+        task_list = [data_args.default_task]
+        task_list = task_list + sorted([t for t in dataset_dict["support"].unique("task") if t not in task_list]) # Let's sort tasks for determinism
+        task_list = task_list + sorted([t for t in dataset_dict["train"].unique("task") if t not in task_list])
+
     task_to_id = {v: i for i, v in enumerate(task_list)}
-    default_task_id = task_to_id[data_args.default_task]
+    default_task_id = task_to_id[data_args.default_task] if data_args.default_task in task_to_id else -1
 
     raw_datasets = DatasetDict(dataset_dict)
 
@@ -466,6 +474,7 @@ def main():
 
         output_predict_file = os.path.join(training_args.output_dir, f"predict_results_{data_args.task_name}.json")
         output_label_file = os.path.join(training_args.output_dir, f"predict_labels_{data_args.task_name}.txt")
+        output_task_file = os.path.join(training_args.output_dir, f"predict_tasks_{data_args.task_name}.txt")
         if trainer.is_world_process_zero():
             with open(output_predict_file, "w") as writer:
                 logger.info(f"***** Predict results {data_args.task_name} *****")
@@ -477,6 +486,10 @@ def main():
             with open(output_label_file, "w") as writer:
                 logger.info(f"***** Save labels {data_args.task_name} *****")
                 for item in label_list:
+                    writer.write(f"{item}\n")
+            with open(output_task_file, "w") as writer:
+                logger.info(f"***** Save tasks {data_args.task_name} *****")
+                for item in task_list:
                     writer.write(f"{item}\n")
 
     if training_args.push_to_hub:

@@ -55,15 +55,27 @@ class FewshotProcessor:
 
     @classmethod
     def get_labels_from_examples(cls, examples):
-        """Gets the list of labels for a data set."""
+        """Gets the list of labels from a data set."""
         labels = set([d["label"] for d in examples])
         return sorted(list(labels))
 
     @classmethod
     def get_labels_from_file(cls, label_file):
-        """Gets the list of labels for a label file."""
+        """Gets the list of labels from a label file."""
         labels = cls._read_tsv(label_file)
         return labels
+
+    @classmethod
+    def get_tasks_from_examples(cls, examples):
+        """Gets the list of tasks from a data set."""
+        tasks = set([d["task"] for d in examples])
+        return sorted(list(tasks))
+
+    @classmethod
+    def get_tasks_from_file(cls, task_file):
+        """Gets the list of tasks from a task file."""
+        tasks = cls._read_tsv(task_file)
+        return tasks
 
     @classmethod
     def to_datasets(cls, examples):
