@@ -157,16 +157,16 @@ def load_tf_weights_in_promptbert(model, config, tf_checkpoint_path):
 class PromptBertSoftPrompt(nn.Module):
     def __init__(self, config):
         super().__init__()
-        self.num_task = config.num_task
+        self.num_tasks = config.num_tasks
         self.prefix_len = config.prefix_len
         self.hidden_size = config.hidden_size
         self.prompt_embeddings = nn.Parameter(
-            torch.normal(0.0, config.initializer_range, size=(config.num_task, config.prefix_len, config.hidden_size)))
+            torch.normal(0.0, config.initializer_range, size=(config.num_tasks, config.prefix_len, config.hidden_size)))
 
     def update_prompt(self, embeddings):
         assert embeddings.size(1) == self.hidden_size
-        sample_ids = torch.randint(0, embeddings.size(0), size=(self.num_task, self.prefix_len), device=self.prompt_embeddings.device)
-        sample_embeds = torch.index_select(embeddings, 0, sample_ids.view(-1)).view(self.num_task, self.prefix_len, self.hidden_size)
+        sample_ids = torch.randint(0, embeddings.size(0), size=(self.num_tasks, self.prefix_len), device=self.prompt_embeddings.device)
+        sample_embeds = torch.index_select(embeddings, 0, sample_ids.view(-1)).view(self.num_tasks, self.prefix_len, self.hidden_size)
         self.prompt_embeddings.data.copy_(sample_embeds.data)
 
     def forward(self, inputs_embeds, attention_mask=None, task_ids=None):
@@ -516,7 +516,8 @@ class PromptBertForSequenceClassification(PromptBertPreTrainedModel):
         self.classifier = nn.Linear(config.hidden_size, config.num_labels)
 
         self.init_weights()
-        self.freeze_weights()
+        if config.freeze_weights:
+            self.freeze_weights()
 
     def tie_weights(self):
         super().tie_weights()
@@ -630,7 +631,8 @@ class PromptBertForDualPassageEncoder(PromptBertPreTrainedModel):
             self.classifier = nn.Linear(config.hidden_size, config.num_labels)
 
         self.init_weights()
-        self.freeze_weights()
+        if config.freeze_weights:
+            self.freeze_weights()
 
     def tie_weights(self):
         super().tie_weights()

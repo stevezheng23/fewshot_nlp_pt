@@ -149,6 +149,10 @@ class DataTrainingArguments:
         default=5,
         metadata={"help": "The length of soft prompts to prepend."},
     )
+    freeze_weights: bool = field(
+        default=True,
+        metadata={"help": "Whether to freeze shared weights for prompt tuning."},
+    )
 
 
 @dataclass
@@ -294,8 +298,9 @@ def main():
     config = AutoConfig.from_pretrained(
         model_args.config_name if model_args.config_name else model_args.model_name_or_path,
         num_labels=num_labels,
-        num_task=len(task_list),
+        num_tasks=len(task_list),
         prefix_len=data_args.prefix_len,
+        freeze_weights=data_args.freeze_weights,
         finetuning_task=data_args.task_name,
         cache_dir=model_args.cache_dir,
         revision=model_args.model_revision,
