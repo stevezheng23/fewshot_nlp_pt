@@ -123,8 +123,9 @@ class PromptBertConfig(PretrainedConfig):
         use_cache=True,
         classifier_dropout=None,
         pooler_type="default",
-        num_task=1,
-        prefix_len=5,
+        num_tasks=1,
+        prefix_len=1,
+        freeze_weights=True,
         **kwargs
     ):
         super().__init__(pad_token_id=pad_token_id, **kwargs)
@@ -146,5 +147,6 @@ class PromptBertConfig(PretrainedConfig):
         self.use_cache = use_cache
         self.classifier_dropout = classifier_dropout
         self.pooler_type = pooler_type
-        self.num_task = num_task
+        self.num_tasks = num_tasks
         self.prefix_len = prefix_len
+        self.freeze_weights = freeze_weights
