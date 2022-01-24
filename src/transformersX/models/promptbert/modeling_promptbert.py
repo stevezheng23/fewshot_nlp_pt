@@ -522,6 +522,8 @@ class PromptBertForSequenceClassification(PromptBertPreTrainedModel):
         super().tie_weights()
         self.bert.prompt.update_prompt(self.bert.embeddings.word_embeddings.weight)
         self.bert.prompt.prompt_embeddings.requires_grad = True
+        self.bert.pooler.dense.weight.requires_grad = True
+        self.bert.pooler.dense.bias.requires_grad = True
 
     def freeze_weights(self):
         for param in self.parameters():
@@ -634,6 +636,8 @@ class PromptBertForDualPassageEncoder(PromptBertPreTrainedModel):
         super().tie_weights()
         self.bert.prompt.update_prompt(self.bert.embeddings.word_embeddings.weight)
         self.bert.prompt.prompt_embeddings.requires_grad = True
+        self.pooler.dense.weight.requires_grad = True
+        self.pooler.dense.bias.requires_grad = True
 
     def freeze_weights(self):
         for param in self.parameters():
