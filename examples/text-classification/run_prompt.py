@@ -153,6 +153,10 @@ class DataTrainingArguments:
         default=1,
         metadata={"help": "The length of soft prompts to prepend."},
     )
+    sample_prompts: bool = field(
+        default=True,
+        metadata={"help": "Whether to sample soft prompts from word embeddings."},
+    )
     freeze_weights: bool = field(
         default=True,
         metadata={"help": "Whether to freeze shared weights for prompt tuning."},
@@ -308,6 +312,7 @@ def main():
         num_labels=num_labels,
         num_tasks=len(task_list),
         prefix_len=data_args.prefix_len,
+        sample_prompts=data_args.sample_prompts,
         freeze_weights=data_args.freeze_weights,
         finetuning_task=data_args.task_name,
         cache_dir=model_args.cache_dir,

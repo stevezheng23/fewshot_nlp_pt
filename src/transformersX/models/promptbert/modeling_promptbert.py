@@ -165,7 +165,7 @@ class PromptBertSoftPrompt(nn.Module):
         self.prompt_embeddings = nn.Parameter(
             torch.normal(0.0, config.initializer_range, size=(config.num_tasks, config.prefix_len, config.hidden_size)))
 
-    def update_prompt(self, embeddings):
+    def sample_prompt(self, embeddings):
         v, h = embeddings.size()
         assert v > self.mask_token_id and h == self.hidden_size
         if self.sample_type == "mask":
@@ -512,6 +512,8 @@ class PromptBertModel(PromptBertPreTrainedModel):
 class PromptBertForSequenceClassification(PromptBertPreTrainedModel):
     def __init__(self, config):
         super().__init__(config)
+        self.sample_prompts = config.sample_prompts
+        self.freeze_weights = config.freeze_weights
         self.num_labels = config.num_labels
         self.config = config
 
@@ -523,12 +525,14 @@ class PromptBertForSequenceClassification(PromptBertPreTrainedModel):
         self.classifier = nn.Linear(config.hidden_size, config.num_labels)
 
         self.init_weights()
-        if config.freeze_weights:
-            self.freeze_weights()
 
     def tie_weights(self):
         super().tie_weights()
-        self.bert.prompt.update_prompt(self.bert.embeddings.word_embeddings.weight)
+        if self.sample_prompts:
+            self.bert.prompt.sample_prompt(self.bert.embeddings.word_embeddings.weight)
+        if self.freeze_weights:
+            for param in self.parameters():
+                param.requires_grad = False
         self.bert.prompt.prompt_embeddings.requires_grad = True
         self.bert.pooler.dense.weight.requires_grad = True
         self.bert.pooler.dense.bias.requires_grad = True
@@ -628,6 +632,8 @@ class PromptBertForSequenceClassification(PromptBertPreTrainedModel):
 class PromptBertForDualPassageEncoder(PromptBertPreTrainedModel):
     def __init__(self, config, cls_loss_wgt=None):
         super().__init__(config)
+        self.sample_prompts = config.sample_prompts
+        self.freeze_weights = config.freeze_weights
         self.num_labels = config.num_labels
         self.cls_loss_wgt = cls_loss_wgt
 
@@ -638,19 +644,17 @@ class PromptBertForDualPassageEncoder(PromptBertPreTrainedModel):
             self.classifier = nn.Linear(config.hidden_size, config.num_labels)
 
         self.init_weights()
-        if config.freeze_weights:
-            self.freeze_weights()
 
     def tie_weights(self):
         super().tie_weights()
-        self.bert.prompt.update_prompt(self.bert.embeddings.word_embeddings.weight)
+        if self.sample_prompts:
+            self.bert.prompt.sample_prompt(self.bert.embeddings.word_embeddings.weight)
+        if self.freeze_weights:
+            for param in self.parameters():
+                param.requires_grad = False
         self.bert.prompt.prompt_embeddings.requires_grad = True
         self.pooler.dense.weight.requires_grad = True
         self.pooler.dense.bias.requires_grad = True
-
-    def freeze_weights(self):
-        for param in self.parameters():
-            param.requires_grad = False
 
     @add_start_docstrings_to_model_forward(PROMPTBERT_INPUTS_DOCSTRING.format("batch_size, 2, sequence_length"))
     @add_code_sample_docstrings(

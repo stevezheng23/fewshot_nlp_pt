@@ -129,6 +129,7 @@ class PromptBertConfig(PretrainedConfig):
         pooler_type="default",
         num_tasks=1,
         prefix_len=1,
+        sample_prompts=True,
         freeze_weights=True,
         **kwargs
     ):
@@ -157,4 +158,5 @@ class PromptBertConfig(PretrainedConfig):
         self.pooler_type = pooler_type
         self.num_tasks = num_tasks
         self.prefix_len = prefix_len
+        self.sample_prompts = sample_prompts
         self.freeze_weights = freeze_weights
