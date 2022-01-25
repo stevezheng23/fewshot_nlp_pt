@@ -157,11 +157,11 @@ def load_tf_weights_in_promptbert(model, config, tf_checkpoint_path):
 class PromptBertSoftPrompt(nn.Module):
     def __init__(self, config):
         super().__init__()
-        self.mask_token_id = config.mask_token_id
-        self.sample_type = config.sample_type
         self.num_tasks = config.num_tasks
         self.prefix_len = config.prefix_len
         self.hidden_size = config.hidden_size
+        self.sample_type = config.sample_type
+        self.mask_token_id = config.mask_token_id
         self.prompt_embeddings = nn.Parameter(
             torch.normal(0.0, config.initializer_range, size=(config.num_tasks, config.prefix_len, config.hidden_size)))
 
@@ -191,8 +191,8 @@ class PromptBertSoftPrompt(nn.Module):
 class PromptBertPooler(nn.Module):
     def __init__(self, config):
         super().__init__()
-        self.pooler_type = config.pooler_type
         self.prefix_len = config.prefix_len
+        self.pooler_type = config.pooler_type
         self.dense = nn.Linear(config.hidden_size, config.hidden_size)
         self.activation = nn.Tanh()
 
@@ -536,10 +536,6 @@ class PromptBertForSequenceClassification(PromptBertPreTrainedModel):
         self.bert.prompt.prompt_embeddings.requires_grad = True
         self.bert.pooler.dense.weight.requires_grad = True
         self.bert.pooler.dense.bias.requires_grad = True
-
-    def freeze_weights(self):
-        for param in self.parameters():
-            param.requires_grad = False
 
     @add_start_docstrings_to_model_forward(PROMPTBERT_INPUTS_DOCSTRING.format("batch_size, sequence_length"))
     @add_code_sample_docstrings(

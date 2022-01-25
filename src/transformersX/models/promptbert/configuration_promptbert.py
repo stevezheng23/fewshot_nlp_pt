@@ -125,10 +125,10 @@ class PromptBertConfig(PretrainedConfig):
         position_embedding_type="absolute",
         use_cache=True,
         classifier_dropout=None,
-        sample_type="random",
-        pooler_type="default",
         num_tasks=1,
         prefix_len=1,
+        pooler_type="default",
+        sample_type="random",
         sample_prompts=True,
         freeze_weights=True,
         **kwargs
@@ -154,9 +154,9 @@ class PromptBertConfig(PretrainedConfig):
         self.cls_token_id = cls_token_id
         self.sep_token_id = sep_token_id
         self.mask_token_id = mask_token_id
-        self.sample_type = sample_type
-        self.pooler_type = pooler_type
         self.num_tasks = num_tasks
         self.prefix_len = prefix_len
+        self.pooler_type = pooler_type
+        self.sample_type = sample_type
         self.sample_prompts = sample_prompts
         self.freeze_weights = freeze_weights
