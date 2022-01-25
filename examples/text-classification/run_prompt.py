@@ -359,6 +359,7 @@ def main():
         
         # Map labels to IDs
         if label_to_id is not None and "label" in examples:
+            result["label_tag"] = [l for l in examples["label"]]
             result["label"] = [(label_to_id[l] if l in label_to_id else default_label_id) for l in examples["label"]]
         # Map tasks to IDs
         if task_to_id is not None and "task" in examples:
@@ -485,7 +486,7 @@ def main():
                 logger.info(f"***** Predict results {data_args.task_name} *****")
                 for index, d in enumerate(predict_dataset):
                     item = predictions[index]
-                    d["label"] = label_list[d["label"]]
+                    d["label"] = d["label_tag"]
                     d["pred"] = label_list[item]
                     writer.write(f"{json.dumps(d)}\n")
             with open(output_label_file, "w") as writer:
