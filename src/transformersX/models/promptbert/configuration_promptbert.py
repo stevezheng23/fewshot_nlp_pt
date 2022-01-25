@@ -118,10 +118,14 @@ class PromptBertConfig(PretrainedConfig):
         initializer_range=0.02,
         layer_norm_eps=1e-12,
         pad_token_id=0,
+        cls_token_id=101,
+        sep_token_id=102,
+        mask_token_id=103,
         gradient_checkpointing=False,
         position_embedding_type="absolute",
         use_cache=True,
         classifier_dropout=None,
+        sample_type="random",
         pooler_type="default",
         num_tasks=1,
         prefix_len=1,
@@ -146,6 +150,10 @@ class PromptBertConfig(PretrainedConfig):
         self.position_embedding_type = position_embedding_type
         self.use_cache = use_cache
         self.classifier_dropout = classifier_dropout
+        self.cls_token_id = cls_token_id
+        self.sep_token_id = sep_token_id
+        self.mask_token_id = mask_token_id
+        self.sample_type = sample_type
         self.pooler_type = pooler_type
         self.num_tasks = num_tasks
         self.prefix_len = prefix_len
