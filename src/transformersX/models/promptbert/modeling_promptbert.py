@@ -157,6 +157,8 @@ def load_tf_weights_in_promptbert(model, config, tf_checkpoint_path):
 class PromptBertSoftPrompt(nn.Module):
     def __init__(self, config):
         super().__init__()
+        self.mask_token_id = config.mask_token_id
+        self.sample_type = config.sample_type
         self.num_tasks = config.num_tasks
         self.prefix_len = config.prefix_len
         self.hidden_size = config.hidden_size
@@ -164,8 +166,13 @@ class PromptBertSoftPrompt(nn.Module):
             torch.normal(0.0, config.initializer_range, size=(config.num_tasks, config.prefix_len, config.hidden_size)))
 
     def update_prompt(self, embeddings):
-        assert embeddings.size(1) == self.hidden_size
-        sample_ids = torch.randint(0, embeddings.size(0), size=(self.num_tasks, self.prefix_len), device=self.prompt_embeddings.device)
+        v, h = embeddings.size()
+        assert v > self.mask_token_id and h == self.hidden_size
+        if self.sample_type == "mask":
+            sample_ids = torch.zeros(self.num_tasks, self.prefix_len, dtype=torch.long, device=self.prompt_embeddings.device)
+            sample_ids[:,:] = self.mask_token_id
+        else:
+            sample_ids = torch.randint(0, v, size=(self.num_tasks, self.prefix_len), device=self.prompt_embeddings.device)
         sample_embeds = torch.index_select(embeddings, 0, sample_ids.view(-1)).view(self.num_tasks, self.prefix_len, self.hidden_size)
         self.prompt_embeddings.data.copy_(sample_embeds.data)
 
