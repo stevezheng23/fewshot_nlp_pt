@@ -153,6 +153,10 @@ class DataTrainingArguments:
         default=1,
         metadata={"help": "The length of soft prompts to prepend."},
     )
+    prefix_type: Optional[str] = field(
+        default="pre_cls",
+        metadata={"help": "The prefix type for adding soft prompts."}
+    )
     sample_type: Optional[str] = field(
         default="random",
         metadata={"help": "The sample type for initializing soft prompts."}
@@ -316,6 +320,7 @@ def main():
         num_labels=num_labels,
         num_tasks=len(task_list),
         prefix_len=data_args.prefix_len,
+        prefix_type=data_args.prefix_type,
         sample_type=data_args.sample_type,
         sample_prompts=data_args.sample_prompts,
         freeze_weights=data_args.freeze_weights,

@@ -159,6 +159,7 @@ class PromptBertSoftPrompt(nn.Module):
         super().__init__()
         self.num_tasks = config.num_tasks
         self.prefix_len = config.prefix_len
+        self.prefix_type = config.prefix_type
         self.hidden_size = config.hidden_size
         self.sample_type = config.sample_type
         self.mask_token_id = config.mask_token_id
@@ -180,11 +181,17 @@ class PromptBertSoftPrompt(nn.Module):
         if task_ids is None:
             task_ids = torch.zeros(inputs_embeds.size(0), dtype=torch.long, device=inputs_embeds.device)
         prompt_embeds = torch.index_select(self.prompt_embeddings, 0, task_ids)
-        prompt_embeds = torch.cat([prompt_embeds, inputs_embeds], dim=1)
+        if self.prefix_type == "post_cls":
+            prompt_embeds = torch.cat([prompt_embeds[:,:1,:], inputs_embeds, prompt_embeds[:,1:,:]], dim=1)
+        else:
+            prompt_embeds = torch.cat([prompt_embeds, inputs_embeds], dim=1)
         if attention_mask is None:
             return prompt_embeds, None
         prompt_mask = torch.ones(attention_mask.size(0), self.prefix_len, dtype=attention_mask.dtype, device=attention_mask.device)
-        prompt_mask = torch.cat([prompt_mask, attention_mask], dim=1)
+        if self.prefix_type == "post_cls":
+            prompt_mask = torch.cat([prompt_mask[:,:1], attention_mask, prompt_mask[:,1:]], dim=1)
+        else:
+            prompt_mask = torch.cat([prompt_mask, attention_mask], dim=1)
         return prompt_embeds, prompt_mask
 
 
@@ -192,6 +199,7 @@ class PromptBertPooler(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.prefix_len = config.prefix_len
+        self.prefix_type = config.prefix_type
         self.pooler_type = config.pooler_type
         self.dense = nn.Linear(config.hidden_size, config.hidden_size)
         self.activation = nn.Tanh()
@@ -209,10 +217,10 @@ class PromptBertPooler(nn.Module):
             if pooling_mask is not None:
                 hidden_states.masked_fill((1.0 - pooling_mask).bool().unsqueeze(-1), float("-inf"))
             x, _ = torch.max(hidden_states, dim=1)
-        elif self.pooler_type == "first":
-            x = hidden_states[:, 0, :]
-        else:
+        elif self.prefix_type == "pre_cls":
             x = hidden_states[:, self.prefix_len, :]
+        else:
+            x = hidden_states[:, 0, :]
         x = self.dense(x)
         x = self.activation(x)
         return x
