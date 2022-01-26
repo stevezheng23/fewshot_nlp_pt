@@ -127,6 +127,7 @@ class PromptBertConfig(PretrainedConfig):
         classifier_dropout=None,
         num_tasks=1,
         prefix_len=1,
+        prefix_type="pre_cls",
         pooler_type="default",
         sample_type="random",
         sample_prompts=True,
@@ -156,6 +157,7 @@ class PromptBertConfig(PretrainedConfig):
         self.mask_token_id = mask_token_id
         self.num_tasks = num_tasks
         self.prefix_len = prefix_len
+        self.prefix_type = prefix_type
         self.pooler_type = pooler_type
         self.sample_type = sample_type
         self.sample_prompts = sample_prompts
