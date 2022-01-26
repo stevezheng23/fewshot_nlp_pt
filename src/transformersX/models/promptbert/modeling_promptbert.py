@@ -182,14 +182,14 @@ class PromptBertSoftPrompt(nn.Module):
             task_ids = torch.zeros(inputs_embeds.size(0), dtype=torch.long, device=inputs_embeds.device)
         prompt_embeds = torch.index_select(self.prompt_embeddings, 0, task_ids)
         if self.prefix_type == "post_cls":
-            prompt_embeds = torch.cat([prompt_embeds[:,:1,:], inputs_embeds, prompt_embeds[:,1:,:]], dim=1)
+            prompt_embeds = torch.cat([inputs_embeds[:,:1,:], prompt_embeds, inputs_embeds[:,1:,:]], dim=1)
         else:
             prompt_embeds = torch.cat([prompt_embeds, inputs_embeds], dim=1)
         if attention_mask is None:
             return prompt_embeds, None
         prompt_mask = torch.ones(attention_mask.size(0), self.prefix_len, dtype=attention_mask.dtype, device=attention_mask.device)
         if self.prefix_type == "post_cls":
-            prompt_mask = torch.cat([prompt_mask[:,:1], attention_mask, prompt_mask[:,1:]], dim=1)
+            prompt_mask = torch.cat([attention_mask[:,:1], prompt_mask, attention_mask[:,1:]], dim=1)
         else:
             prompt_mask = torch.cat([prompt_mask, attention_mask], dim=1)
         return prompt_embeds, prompt_mask
