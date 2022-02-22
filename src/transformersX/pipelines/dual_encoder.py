@@ -40,5 +40,5 @@ class DualPassageEncoderPipeline(Pipeline):
 
             - **seq_embed** (list of :obj:`float`) -- The sequence embedding.
         """
-        outputs = super().__call__(*args, **kwargs)
-        return [{"seq_embed": item} for item in outputs]
+        results = super().__call__(*args, **kwargs)
+        return [{"seq_embed": item} for item in results]
