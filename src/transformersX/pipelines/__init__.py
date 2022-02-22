@@ -55,6 +55,7 @@ from .token_classification import (
     TokenClassificationPipeline,
 )
 from .zero_shot_classification import ZeroShotClassificationArgumentHandler, ZeroShotClassificationPipeline
+from .dual_encoder import DualPassageEncoderPipeline
 
 
 if is_tf_available():
@@ -85,6 +86,7 @@ if is_torch_available():
         MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING,
         MODEL_FOR_TABLE_QUESTION_ANSWERING_MAPPING,
         MODEL_FOR_TOKEN_CLASSIFICATION_MAPPING,
+        MODEL_FOR_DUAL_PASSAGE_ENCODER_MAPPING,
         AutoModel,
         AutoModelForCausalLM,
         AutoModelForImageClassification,
@@ -94,6 +96,7 @@ if is_torch_available():
         AutoModelForSequenceClassification,
         AutoModelForTableQuestionAnswering,
         AutoModelForTokenClassification,
+        AutoModelForDualPassageEncoder,
     )
 if TYPE_CHECKING:
     from ..modeling_tf_utils import TFPreTrainedModel
@@ -220,6 +223,12 @@ SUPPORTED_TASKS = {
         "tf": (),
         "pt": (AutoModelForImageClassification,) if is_torch_available() else (),
         "default": {"model": {"pt": "google/vit-base-patch16-224"}},
+    },
+    "dual-encoder": {
+        "impl": DualPassageEncoderPipeline,
+        "tf": (),
+        "pt": (AutoModelForDualPassageEncoder,) if is_torch_available() else (),
+        "default": {"model": {"pt": "bert-base-uncased"}},
     },
 }
 

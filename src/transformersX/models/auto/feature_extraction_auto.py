@@ -17,7 +17,7 @@
 import os
 from collections import OrderedDict
 
-from transformers import BeitFeatureExtractor, DeiTFeatureExtractor, Speech2TextFeatureExtractor, ViTFeatureExtractor
+from transformersX import BeitFeatureExtractor, DeiTFeatureExtractor, Speech2TextFeatureExtractor, ViTFeatureExtractor
 
 from ... import BeitConfig, DeiTConfig, PretrainedConfig, Speech2TextConfig, ViTConfig, Wav2Vec2Config
 from ...feature_extraction_utils import FeatureExtractionMixin

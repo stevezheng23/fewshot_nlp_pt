@@ -21,7 +21,7 @@ import torch
 import torch.utils.checkpoint
 from torch import nn
 
-from transformers.deepspeed import is_deepspeed_zero3_enabled
+from transformersX.deepspeed import is_deepspeed_zero3_enabled
 
 from ...activations import ACT2FN
 from ...file_utils import add_start_docstrings, add_start_docstrings_to_model_forward, replace_return_docstrings

@@ -19,9 +19,9 @@ from typing import Dict, List, Optional, Tuple
 
 from packaging.version import Version, parse
 
-from transformers.file_utils import ModelOutput, is_tf_available, is_torch_available
-from transformers.pipelines import Pipeline, pipeline
-from transformers.tokenization_utils import BatchEncoding
+from transformersX.file_utils import ModelOutput, is_tf_available, is_torch_available
+from transformersX.pipelines import Pipeline, pipeline
+from transformersX.tokenization_utils import BatchEncoding
 
 
 # This is the minimal required version to
@@ -39,6 +39,7 @@ SUPPORTED_PIPELINES = [
     "translation_en_to_fr",
     "translation_en_to_de",
     "translation_en_to_ro",
+    "dual-encoder",
 ]
 
 
